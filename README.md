@@ -2,7 +2,7 @@
 
 Watch-first, billable-aware time tracking for Android and Wear OS.
 
-SessionLedger is designed for professionals who want a fast “start/stop” workflow from a Wear OS tile, with billing rules that match real client work: categories/jobs, hourly rates, 6-minute rounding, and minimum billable time/charge.
+SessionLedger is designed for professionals who want a fast "start/stop" workflow from a Wear OS tile, with billing rules that match real client work: categories/jobs, hourly rates, 6-minute rounding, and minimum billable time/charge.
 
 ## Key Features (v1)
 ### Wear OS (Pixel Watch)
@@ -33,16 +33,17 @@ See docs:
 - `docs/billing_rules_v1.md`
 - `docs/csv_schema_v1.md`
 - `docs/ux_wireflow.md`
+- `docs/chat_outputs_step2.md` (staging code blocks from this chat)
 
 ## Repository Layout
 - `docs/` Planning specifications and UX flows
-- `android/` Android Studio project (mobile + wear modules)
+- `android/` Android Studio project (mobile + wear modules) (to be created)
 
 ## License
-Licensed under the Apache License, Version 2.0. See `LICENSE`.
+Intended license: Apache License, Version 2.0. See `LICENSE_INSTRUCTIONS.md` to add the canonical license text.
 
-## Copyright
-Copyright (c) 2026 Dominic (Nick) Pelletier
+## Publisher / Author
+PellDomPress
 
 ## Status
 Planning complete. Implementation begins with data layer (Room + settings + billing engine + CSV export), then UI, then Wear tile.
