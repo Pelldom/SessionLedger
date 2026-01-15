@@ -18,7 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun SessionListScreen() {
+fun SessionListScreen(onSessionClick: (String) -> Unit) {
     val context = LocalContext.current
     val viewModel = remember {
         SessionListViewModel(context.applicationContext as android.app.Application)
@@ -30,17 +30,17 @@ fun SessionListScreen() {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(items, key = { it.id }) { item ->
-            SessionRow(item = item)
+            SessionRow(item = item, onClick = { onSessionClick(item.id) })
         }
     }
 }
 
 @Composable
-private fun SessionRow(item: SessionListItemUiModel) {
+private fun SessionRow(item: SessionListItemUiModel, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = { })
+            .clickable(onClick = onClick)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {

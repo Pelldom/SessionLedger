@@ -22,8 +22,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.NavType
 import press.pelldom.sessionledger.mobile.ui.active.ActiveSessionScreen
 import press.pelldom.sessionledger.mobile.ui.navigation.MobileRoutes
+import press.pelldom.sessionledger.mobile.ui.detail.SessionDetailScreen
 import press.pelldom.sessionledger.mobile.ui.sessions.SessionListScreen
 import press.pelldom.sessionledger.mobile.ui.settings.SettingsScreen
 
@@ -86,8 +89,23 @@ private fun MobileApp() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(MobileRoutes.ACTIVE) { ActiveSessionScreen() }
-            composable(MobileRoutes.SESSIONS) { SessionListScreen() }
+            composable(MobileRoutes.SESSIONS) {
+                SessionListScreen(onSessionClick = { id ->
+                    navController.navigate(MobileRoutes.sessionDetailRoute(id))
+                })
+            }
             composable(MobileRoutes.SETTINGS) { SettingsScreen() }
+
+            composable(
+                route = MobileRoutes.SESSION_DETAIL_ROUTE,
+                arguments = listOf(navArgument("sessionId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val sessionId = backStackEntry.arguments?.getString("sessionId") ?: return@composable
+                SessionDetailScreen(
+                    sessionId = sessionId,
+                    onDone = { navController.popBackStack() }
+                )
+            }
         }
     }
 }
