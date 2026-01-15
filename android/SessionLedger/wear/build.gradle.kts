@@ -8,7 +8,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "press.pelldom.sessionledger.wear"
+        applicationId = "press.pelldom.sessionledger"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

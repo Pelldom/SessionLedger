@@ -1,6 +1,7 @@
 package press.pelldom.sessionledger.wear.ui
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.tasks.Tasks
@@ -23,6 +24,7 @@ data class WatchSessionUiState(
 )
 
 class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataClient.OnDataChangedListener {
+    private val tag = "SessionLedgerWear"
 
     private val dataClient = Wearable.getDataClient(app)
     private val messageClient = Wearable.getMessageClient(app)
@@ -45,7 +47,7 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
         for (event in dataEvents) {
             if (event.type != DataEvent.TYPE_CHANGED) continue
             val item = event.dataItem
-            if (item.uri.path != WearSessionPaths.ACTIVE_SESSION_STATE) continue
+            if (item.uri.path != WearSessionPaths.SESSION_STATE) continue
             applyDataItem(item)
         }
     }
@@ -59,7 +61,7 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
         viewModelScope.launch(Dispatchers.IO) {
             val items = Tasks.await(dataClient.dataItems)
             try {
-                val found = items.firstOrNull { it.uri.path == WearSessionPaths.ACTIVE_SESSION_STATE }
+                val found = items.firstOrNull { it.uri.path == WearSessionPaths.SESSION_STATE }
                 if (found != null) applyDataItem(found)
             } finally {
                 items.release()
@@ -82,6 +84,7 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
             else -> WatchSessionState.NONE
         }
 
+        Log.d(tag, "Received /session/state: $rawState start=$start")
         _uiState.value = WatchSessionUiState(state = state, startTimeMillis = start)
     }
 

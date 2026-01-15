@@ -6,7 +6,7 @@ object WearSessionPaths {
     const val RESUME = "/session/resume"
     const val END = "/session/end"
 
-    const val ACTIVE_SESSION_STATE = "/active_session_state"
+    const val SESSION_STATE = "/session/state"
 
     const val KEY_STATE = "state" // "NONE" | "RUNNING" | "PAUSED"
     const val KEY_START_TIME_MILLIS = "startTimeMillis"
