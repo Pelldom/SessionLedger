@@ -16,21 +16,37 @@ object WearSessionStatePublisher {
 
         val put = PutDataMapRequest.create(WearSessionPaths.SESSION_STATE)
         val map = put.dataMap
+        val nowMs = System.currentTimeMillis()
 
         if (activeSession == null || activeSession.state == SessionState.ENDED) {
             map.putString(WearSessionPaths.KEY_STATE, "NONE")
             map.remove(WearSessionPaths.KEY_START_TIME_MILLIS)
+            map.putLong(WearSessionPaths.KEY_ELAPSED_MILLIS, 0L)
             Log.d(TAG, "Publish /session/state: NONE")
         } else {
+            val elapsed = computeElapsedMillis(activeSession, nowMs)
             map.putString(WearSessionPaths.KEY_STATE, activeSession.state.name)
             map.putLong(WearSessionPaths.KEY_START_TIME_MILLIS, activeSession.startTimeMillis)
-            Log.d(TAG, "Publish /session/state: ${activeSession.state.name} start=${activeSession.startTimeMillis}")
+            map.putLong(WearSessionPaths.KEY_ELAPSED_MILLIS, elapsed)
+            Log.d(
+                TAG,
+                "Publish /session/state: ${activeSession.state.name} start=${activeSession.startTimeMillis} elapsed=$elapsed"
+            )
         }
 
         // Force propagation on every state change.
-        map.putLong("updatedAtMs", System.currentTimeMillis())
+        map.putLong("updatedAtMs", nowMs)
 
         Tasks.await(dataClient.putDataItem(put.asPutDataRequest().setUrgent()))
+    }
+
+    private fun computeElapsedMillis(session: SessionEntity, nowMs: Long): Long {
+        val endForElapsedMs = when (session.state) {
+            SessionState.RUNNING -> nowMs
+            SessionState.PAUSED -> session.lastStateChangeTimeMs
+            SessionState.ENDED -> session.endTimeMs ?: session.lastStateChangeTimeMs
+        }
+        return kotlin.math.max(0L, (endForElapsedMs - session.startTimeMs) - session.pausedTotalMs)
     }
 }
 

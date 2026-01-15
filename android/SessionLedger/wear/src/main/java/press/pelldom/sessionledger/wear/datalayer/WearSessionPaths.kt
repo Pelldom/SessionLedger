@@ -10,5 +10,6 @@ object WearSessionPaths {
 
     const val KEY_STATE = "state" // "NONE" | "RUNNING" | "PAUSED"
     const val KEY_START_TIME_MILLIS = "startTimeMillis"
+    const val KEY_ELAPSED_MILLIS = "elapsedMillis"
 }
 

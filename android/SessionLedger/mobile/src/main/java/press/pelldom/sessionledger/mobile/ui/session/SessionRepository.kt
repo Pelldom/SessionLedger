@@ -3,6 +3,11 @@ package press.pelldom.sessionledger.mobile.ui.session
 import android.content.Context
 import kotlin.math.max
 import java.util.UUID
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import press.pelldom.sessionledger.mobile.billing.SessionState
 import press.pelldom.sessionledger.mobile.data.db.dao.SessionDao
 import press.pelldom.sessionledger.mobile.data.db.entities.SessionEntity
@@ -19,6 +24,9 @@ class SessionRepository(
     private val sessionDao: SessionDao,
     private val appContext: Context
 ) {
+    private val scope = CoroutineScope(Dispatchers.IO)
+    private var runningPublishJob: Job? = null
+
     suspend fun startSession() {
         val existing = sessionDao.getActiveSession()
         if (existing != null) return
@@ -43,6 +51,7 @@ class SessionRepository(
         )
         sessionDao.insert(session)
         WearSessionStatePublisher.publish(appContext, session)
+        startRunningPublisher(session)
     }
 
     suspend fun pauseSession() {
@@ -57,6 +66,7 @@ class SessionRepository(
         )
         sessionDao.update(updated)
         WearSessionStatePublisher.publish(appContext, updated)
+        stopRunningPublisher()
     }
 
     suspend fun resumeSession() {
@@ -74,6 +84,7 @@ class SessionRepository(
         )
         sessionDao.update(updated)
         WearSessionStatePublisher.publish(appContext, updated)
+        startRunningPublisher(updated)
     }
 
     suspend fun endSession() {
@@ -96,6 +107,27 @@ class SessionRepository(
         )
         sessionDao.update(updated)
         WearSessionStatePublisher.publish(appContext, null)
+        stopRunningPublisher()
+    }
+
+    private fun startRunningPublisher(session: SessionEntity) {
+        stopRunningPublisher()
+        if (session.state != SessionState.RUNNING) return
+
+        // Lightweight periodic updates while RUNNING so watch can converge to phone truth.
+        runningPublishJob = scope.launch {
+            while (true) {
+                val current = sessionDao.getActiveSession()
+                if (current == null || current.state != SessionState.RUNNING) break
+                WearSessionStatePublisher.publish(appContext, current)
+                delay(1000L)
+            }
+        }
+    }
+
+    private fun stopRunningPublisher() {
+        runningPublishJob?.cancel()
+        runningPublishJob = null
     }
 }
 

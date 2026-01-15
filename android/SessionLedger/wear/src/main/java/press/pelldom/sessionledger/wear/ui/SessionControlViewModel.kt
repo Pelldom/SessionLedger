@@ -11,6 +11,8 @@ import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -21,6 +23,8 @@ enum class WatchSessionState { NONE, RUNNING, PAUSED }
 data class WatchSessionUiState(
     val state: WatchSessionState = WatchSessionState.NONE,
     val startTimeMillis: Long? = null,
+    val elapsedMillis: Long = 0L,
+    val displayedElapsedMillis: Long = 0L,
 )
 
 class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataClient.OnDataChangedListener {
@@ -32,6 +36,7 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
 
     private val _uiState = MutableStateFlow(WatchSessionUiState())
     val uiState: StateFlow<WatchSessionUiState> = _uiState
+    private var tickerJob: Job? = null
 
     init {
         dataClient.addListener(this)
@@ -54,6 +59,7 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
 
     override fun onCleared() {
         dataClient.removeListener(this)
+        tickerJob?.cancel()
         super.onCleared()
     }
 
@@ -77,6 +83,11 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
         } else {
             null
         }
+        val elapsed = if (map.containsKey(WearSessionPaths.KEY_ELAPSED_MILLIS)) {
+            map.getLong(WearSessionPaths.KEY_ELAPSED_MILLIS)
+        } else {
+            0L
+        }
 
         val state = when (rawState) {
             "RUNNING" -> WatchSessionState.RUNNING
@@ -84,8 +95,29 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
             else -> WatchSessionState.NONE
         }
 
-        Log.d(tag, "Received /session/state: $rawState start=$start")
-        _uiState.value = WatchSessionUiState(state = state, startTimeMillis = start)
+        Log.d(tag, "Received /session/state: $rawState start=$start elapsed=$elapsed")
+
+        _uiState.value = WatchSessionUiState(
+            state = state,
+            startTimeMillis = start,
+            elapsedMillis = elapsed,
+            displayedElapsedMillis = elapsed
+        )
+
+        // Drive a lightweight 1-second ticker for smooth UI only when RUNNING.
+        tickerJob?.cancel()
+        if (state == WatchSessionState.RUNNING) {
+            tickerJob = viewModelScope.launch(Dispatchers.Main.immediate) {
+                while (true) {
+                    delay(1000L)
+                    val current = _uiState.value
+                    if (current.state != WatchSessionState.RUNNING) break
+                    _uiState.value = current.copy(
+                        displayedElapsedMillis = current.displayedElapsedMillis + 1000L
+                    )
+                }
+            }
+        }
     }
 
     private fun sendCommand(path: String) {
