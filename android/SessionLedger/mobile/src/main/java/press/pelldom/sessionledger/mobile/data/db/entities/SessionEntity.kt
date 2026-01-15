@@ -30,5 +30,10 @@ data class SessionEntity(
     // Audit
     val createdOnDevice: String, // "phone" | "watch"
     val updatedAtMs: Long,
-)
+) {
+    // Step 2B naming aliases (no schema change)
+    val startTimeMillis: Long get() = startTimeMs
+    val endTimeMillis: Long? get() = endTimeMs
+    val pausedDurationMillis: Long get() = pausedTotalMs
+}
 
