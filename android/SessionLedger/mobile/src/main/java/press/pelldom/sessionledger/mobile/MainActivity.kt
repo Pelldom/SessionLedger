@@ -48,25 +48,26 @@ private fun MobileRoot() {
         SessionViewModel(AppDatabase.getInstance(context).sessionDao())
     }
     val activeSession by viewModel.activeSession.collectAsState()
+    val session = activeSession
 
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(activeSession?.id, activeSession?.state) {
-        while (activeSession?.state == SessionState.RUNNING) {
+    LaunchedEffect(session?.id, session?.state) {
+        while (session?.state == SessionState.RUNNING) {
             nowMs = System.currentTimeMillis()
             delay(1000L)
         }
     }
 
-    val statusText = when (activeSession?.state) {
+    val statusText = when (session?.state) {
         null -> "No active session"
         SessionState.RUNNING -> "Running"
         SessionState.PAUSED -> "Paused"
         SessionState.ENDED -> "No active session"
     }
 
-    val elapsedMs = activeSession?.let { sessionElapsedMs(it, nowMs) } ?: 0L
-    val startedAtText = remember(activeSession?.startTimeMillis) {
-        activeSession?.startTimeMillis?.let {
+    val elapsedMs = session?.let { sessionElapsedMs(it, nowMs) } ?: 0L
+    val startedAtText = remember(session?.startTimeMillis) {
+        session?.startTimeMillis?.let {
             val formatted = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))
             "Started at: $formatted"
         }
@@ -95,9 +96,7 @@ private fun MobileRoot() {
                 text = formatElapsed(elapsedMs),
                 style = MaterialTheme.typography.headlineMedium
             )
-            if (activeSession != null &&
-                (activeSession.state == SessionState.RUNNING || activeSession.state == SessionState.PAUSED)
-            ) {
+            if (session != null && (session.state == SessionState.RUNNING || session.state == SessionState.PAUSED)) {
                 Text(
                     text = startedAtText.orEmpty(),
                     style = MaterialTheme.typography.bodyMedium
@@ -111,28 +110,28 @@ private fun MobileRoot() {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Button(
-                    enabled = activeSession == null,
+                    enabled = session == null,
                     onClick = { viewModel.startSession() }
                 ) {
                     Text(text = "Start Session")
                 }
 
                 Button(
-                    enabled = activeSession?.state == SessionState.RUNNING,
+                    enabled = session?.state == SessionState.RUNNING,
                     onClick = { viewModel.pauseSession() }
                 ) {
                     Text(text = "Pause")
                 }
 
                 Button(
-                    enabled = activeSession?.state == SessionState.PAUSED,
+                    enabled = session?.state == SessionState.PAUSED,
                     onClick = { viewModel.resumeSession() }
                 ) {
                     Text(text = "Resume")
                 }
 
                 Button(
-                    enabled = activeSession?.state == SessionState.RUNNING || activeSession?.state == SessionState.PAUSED,
+                    enabled = session?.state == SessionState.RUNNING || session?.state == SessionState.PAUSED,
                     onClick = { viewModel.endSession() }
                 ) {
                     Text(text = "End Session")
