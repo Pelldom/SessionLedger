@@ -4,13 +4,13 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import java.time.Instant
-import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
+import java.util.Date
 import kotlin.math.max
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import press.pelldom.sessionledger.mobile.billing.SessionState
 import press.pelldom.sessionledger.mobile.data.db.AppDatabase
@@ -24,6 +24,8 @@ data class SessionDetailUiState(
     val canSave: Boolean = false,
     val startText: String = "",
     val endText: String = "",
+    val startMillis: Long? = null,
+    val endMillis: Long? = null,
     val durationText: String = "00:00",
 )
 
@@ -37,9 +39,10 @@ class SessionDetailViewModel(
     val uiState: StateFlow<SessionDetailUiState> = _uiState
 
     private val zone = ZoneId.systemDefault()
-    private val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
     private var loadedSession: SessionEntity? = null
+    private var baselineStartMs: Long? = null
+    private var baselineEndMs: Long? = null
     private var startMs: Long? = null
     private var endMs: Long? = null
 
@@ -52,8 +55,10 @@ class SessionDetailViewModel(
             }
 
             loadedSession = session
-            startMs = session.startTimeMs
-            endMs = session.endTimeMs
+            baselineStartMs = session.startTimeMs
+            baselineEndMs = session.endTimeMs
+            startMs = baselineStartMs
+            endMs = baselineEndMs
 
             val isEditable = session.state == SessionState.ENDED && session.endTimeMs != null
             _uiState.value = SessionDetailUiState(
@@ -64,18 +69,26 @@ class SessionDetailViewModel(
                 canSave = false,
                 startText = formatLocal(startMs!!),
                 endText = formatLocal(endMs ?: startMs!!),
+                startMillis = startMs,
+                endMillis = endMs,
                 durationText = formatDuration(derivedDurationMs(session, startMs!!, endMs))
             )
         }
     }
 
-    fun onStartTextChange(text: String) {
-        _uiState.value = _uiState.value.copy(startText = text)
+    fun setStartMillis(epochMs: Long) {
+        startMs = epochMs
         recompute()
     }
 
-    fun onEndTextChange(text: String) {
-        _uiState.value = _uiState.value.copy(endText = text)
+    fun setEndMillis(epochMs: Long) {
+        endMs = epochMs
+        recompute()
+    }
+
+    fun discardEdits() {
+        startMs = baselineStartMs
+        endMs = baselineEndMs
         recompute()
     }
 
@@ -94,7 +107,21 @@ class SessionDetailViewModel(
                 updatedAtMs = nowMs
             )
             db.sessionDao().update(updated)
-            onSuccess()
+            loadedSession = updated
+            baselineStartMs = newStart
+            baselineEndMs = newEnd
+            startMs = newStart
+            endMs = newEnd
+            _uiState.value = _uiState.value.copy(
+                startText = formatLocal(newStart),
+                endText = formatLocal(newEnd),
+                startMillis = newStart,
+                endMillis = newEnd,
+                durationText = formatDuration(derivedDurationMs(updated, newStart, newEnd)),
+                validationError = null,
+                canSave = false
+            )
+            withContext(Dispatchers.Main) { onSuccess() }
         }
     }
 
@@ -108,30 +135,36 @@ class SessionDetailViewModel(
             return
         }
 
-        val startParsed = parseLocalOrNull(_uiState.value.startText)
-        val endParsed = parseLocalOrNull(_uiState.value.endText)
+        val start = startMs
+        val end = endMs
 
-        startMs = startParsed
-        endMs = endParsed
-
-        val error = when {
-            startParsed == null || endParsed == null -> "Enter date/time as yyyy-MM-dd HH:mm"
-            endParsed < startParsed -> "End time must be after start time."
-            else -> null
-        }
-
-        val canSave = error == null && startParsed != session.startTimeMs && endParsed != session.endTimeMs
-        val durationText = if (startParsed != null && endParsed != null) {
-            formatDuration(derivedDurationMs(session, startParsed, endParsed))
+        val error = if (start == null || end == null) {
+            "Missing start/end time."
+        } else if (end < start) {
+            "End time must be after start time."
         } else {
-            _uiState.value.durationText
+            null
         }
+
+        val durationText = if (start != null && end != null) {
+            formatDuration(derivedDurationMs(session, start, end))
+        } else _uiState.value.durationText
+
+        val baseStart = baselineStartMs
+        val baseEnd = baselineEndMs
+        val isDirty = start != null && end != null && baseStart != null && baseEnd != null &&
+            (start != baseStart || end != baseEnd)
+        val canSave = error == null && isDirty
 
         _uiState.value = _uiState.value.copy(
             validationError = error,
             canSave = canSave,
             durationText = durationText,
-            isEditable = true
+            isEditable = true,
+            startText = start?.let { formatLocal(it) } ?: _uiState.value.startText,
+            endText = end?.let { formatLocal(it) } ?: _uiState.value.endText,
+            startMillis = start,
+            endMillis = end
         )
     }
 
@@ -140,17 +173,13 @@ class SessionDetailViewModel(
         return max(0L, (safeEnd - start) - session.pausedTotalMs)
     }
 
-    private fun parseLocalOrNull(text: String): Long? {
-        return try {
-            val ldt = LocalDateTime.parse(text.trim(), formatter)
-            ldt.atZone(zone).toInstant().toEpochMilli()
-        } catch (_: Throwable) {
-            null
-        }
-    }
-
     private fun formatLocal(epochMs: Long): String {
-        return Instant.ofEpochMilli(epochMs).atZone(zone).toLocalDateTime().format(formatter)
+        val zdt = Instant.ofEpochMilli(epochMs).atZone(zone)
+        val df = java.text.DateFormat.getDateTimeInstance(
+            java.text.DateFormat.SHORT,
+            java.text.DateFormat.SHORT
+        )
+        return df.format(Date.from(zdt.toInstant()))
     }
 
     private fun formatDuration(ms: Long): String {

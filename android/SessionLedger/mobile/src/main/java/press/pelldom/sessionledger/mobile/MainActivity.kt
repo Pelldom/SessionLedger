@@ -103,7 +103,7 @@ private fun MobileApp() {
                 val sessionId = backStackEntry.arguments?.getString("sessionId") ?: return@composable
                 SessionDetailScreen(
                     sessionId = sessionId,
-                    onDone = { navController.popBackStack() }
+                    onDone = { navController.popBackStack(MobileRoutes.SESSIONS, false) }
                 )
             }
         }
