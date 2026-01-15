@@ -3,6 +3,7 @@ package press.pelldom.sessionledger.mobile
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -14,7 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.NavHost
@@ -53,7 +54,7 @@ private fun MobileApp() {
             BottomNavItem(
                 route = MobileRoutes.SESSIONS,
                 label = "Sessions",
-                icon = Icons.Filled.List
+                icon = Icons.AutoMirrored.Filled.List
             )
         )
     }

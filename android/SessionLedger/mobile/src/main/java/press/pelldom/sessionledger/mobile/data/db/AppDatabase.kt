@@ -13,7 +13,7 @@ import press.pelldom.sessionledger.mobile.data.db.entities.SessionEntity
 @Database(
     entities = [CategoryEntity::class, SessionEntity::class],
     version = 1,
-    exportSchema = true
+    exportSchema = false
 )
 @TypeConverters(RoomConverters::class)
 abstract class AppDatabase : RoomDatabase() {
