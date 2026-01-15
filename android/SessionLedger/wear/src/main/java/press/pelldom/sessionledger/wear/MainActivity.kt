@@ -194,14 +194,13 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 2.dp),
-                horizontalArrangement = Arrangement.Center,
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Button(onClick = onPrimary) { Text(primaryLabel) }
 
                 if (secondaryLabel != null && onSecondary != null) {
-                    Spacer(modifier = Modifier.width(8.dp))
                     Button(onClick = onSecondary) { Text(secondaryLabel) }
                 }
             }
