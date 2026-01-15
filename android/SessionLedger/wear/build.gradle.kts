@@ -47,6 +47,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("androidx.activity:activity-compose:1.9.1")
 
+    // Wear Compose Material (wear module UI components)
+    implementation("androidx.wear.compose:compose-material:1.4.1")
+
     // Wear Compose Material 3 (wear module only)
     implementation("androidx.wear.compose:compose-material3:1.0.0-alpha20")
 
