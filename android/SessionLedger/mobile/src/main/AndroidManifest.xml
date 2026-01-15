@@ -16,6 +16,15 @@
             </intent-filter>
         </activity>
 
+        <service
+            android:name=".wear.WearSessionCommandService"
+            android:exported="true"
+            android:permission="com.google.android.gms.permission.BIND_NETWORK_TASK_SERVICE">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.BIND_LISTENER" />
+            </intent-filter>
+        </service>
+
     </application>
 
 </manifest>

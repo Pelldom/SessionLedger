@@ -16,6 +16,11 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
     buildFeatures {
         compose = true
     }
@@ -51,6 +56,9 @@ dependencies {
     implementation("androidx.wear.protolayout:protolayout:1.0.0")
     implementation("androidx.wear.protolayout:protolayout-material:1.0.0")
     implementation("androidx.wear.protolayout:protolayout-expression:1.0.0")
+
+    // Wear OS Data Layer (watch side)
+    implementation("com.google.android.gms:play-services-wearable:18.2.0")
 
     // Minimal Compose usage for now (no app features implemented yet)
     implementation("androidx.compose.ui:ui")

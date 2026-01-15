@@ -1,5 +1,6 @@
 package press.pelldom.sessionledger.mobile.ui.session
 
+import android.content.Context
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,9 +16,11 @@ import androidx.lifecycle.ViewModel
 import press.pelldom.sessionledger.mobile.billing.SessionState
 import press.pelldom.sessionledger.mobile.data.db.dao.SessionDao
 import press.pelldom.sessionledger.mobile.data.db.entities.SessionEntity
+import press.pelldom.sessionledger.mobile.wear.WearSessionStatePublisher
 
 class SessionViewModel(
     private val sessionDao: SessionDao,
+    private val appContext: Context? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
@@ -30,7 +33,13 @@ class SessionViewModel(
         scope.launch {
             sessionDao.observeActiveSession()
                 .distinctUntilChanged()
-                .collect { _activeSession.value = it }
+                .collect {
+                    _activeSession.value = it
+                    appContext?.let { ctx ->
+                        // Publish state for watch UI whenever phone state changes.
+                        WearSessionStatePublisher.publish(ctx, it)
+                    }
+                }
         }
     }
 
@@ -58,6 +67,7 @@ class SessionViewModel(
                 updatedAtMs = nowMs
             )
             sessionDao.insert(session)
+            appContext?.let { WearSessionStatePublisher.publish(it, session) }
         }
     }
 
@@ -67,13 +77,13 @@ class SessionViewModel(
             if (s.state != SessionState.RUNNING) return@launch
 
             val nowMs = System.currentTimeMillis()
-            sessionDao.update(
-                s.copy(
-                    state = SessionState.PAUSED,
-                    lastStateChangeTimeMs = nowMs,
-                    updatedAtMs = nowMs
-                )
+            val updated = s.copy(
+                state = SessionState.PAUSED,
+                lastStateChangeTimeMs = nowMs,
+                updatedAtMs = nowMs
             )
+            sessionDao.update(updated)
+            appContext?.let { WearSessionStatePublisher.publish(it, updated) }
         }
     }
 
@@ -85,14 +95,14 @@ class SessionViewModel(
             val nowMs = System.currentTimeMillis()
             val pausedDelta = max(0L, nowMs - s.lastStateChangeTimeMs)
 
-            sessionDao.update(
-                s.copy(
-                    state = SessionState.RUNNING,
-                    pausedTotalMs = s.pausedTotalMs + pausedDelta,
-                    lastStateChangeTimeMs = nowMs,
-                    updatedAtMs = nowMs
-                )
+            val updated = s.copy(
+                state = SessionState.RUNNING,
+                pausedTotalMs = s.pausedTotalMs + pausedDelta,
+                lastStateChangeTimeMs = nowMs,
+                updatedAtMs = nowMs
             )
+            sessionDao.update(updated)
+            appContext?.let { WearSessionStatePublisher.publish(it, updated) }
         }
     }
 
@@ -108,15 +118,15 @@ class SessionViewModel(
                 s.pausedTotalMs
             }
 
-            sessionDao.update(
-                s.copy(
-                    state = SessionState.ENDED,
-                    endTimeMs = nowMs,
-                    pausedTotalMs = finalPausedTotalMs,
-                    lastStateChangeTimeMs = nowMs,
-                    updatedAtMs = nowMs
-                )
+            val updated = s.copy(
+                state = SessionState.ENDED,
+                endTimeMs = nowMs,
+                pausedTotalMs = finalPausedTotalMs,
+                lastStateChangeTimeMs = nowMs,
+                updatedAtMs = nowMs
             )
+            sessionDao.update(updated)
+            appContext?.let { WearSessionStatePublisher.publish(it, null) }
         }
     }
 

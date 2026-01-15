@@ -45,7 +45,10 @@ class MainActivity : ComponentActivity() {
 private fun MobileRoot() {
     val context = LocalContext.current
     val viewModel = remember {
-        SessionViewModel(AppDatabase.getInstance(context).sessionDao())
+        SessionViewModel(
+            sessionDao = AppDatabase.getInstance(context).sessionDao(),
+            appContext = context.applicationContext
+        )
     }
     val activeSession by viewModel.activeSession.collectAsState()
     val session = activeSession
