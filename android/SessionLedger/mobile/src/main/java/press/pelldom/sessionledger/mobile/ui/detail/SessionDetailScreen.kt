@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,6 +13,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -48,6 +51,7 @@ fun SessionDetailScreen(sessionId: String, onDone: () -> Unit) {
     var showTimePicker by remember { mutableStateOf(false) }
     var pendingDate by remember { mutableStateOf<LocalDate?>(null) }
     var pendingInitialTime by remember { mutableStateOf<LocalTime?>(null) }
+    var showCategoryPicker by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -76,6 +80,12 @@ fun SessionDetailScreen(sessionId: String, onDone: () -> Unit) {
             Button(onClick = onDone) { Text("Back") }
             return@Column
         }
+
+        ReadonlyPickerField(
+            label = "Category",
+            value = ui.categoryName,
+            onClick = { showCategoryPicker = true }
+        )
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             ReadonlyPickerField(
@@ -221,6 +231,34 @@ fun SessionDetailScreen(sessionId: String, onDone: () -> Unit) {
             },
             title = { Text("Pick time") },
             text = { TimePicker(state = timePickerState) }
+        )
+    }
+
+    if (showCategoryPicker) {
+        AlertDialog(
+            onDismissRequest = { showCategoryPicker = false },
+            confirmButton = {},
+            dismissButton = {
+                OutlinedButton(onClick = { showCategoryPicker = false }) { Text("Close") }
+            },
+            title = { Text("Pick category") },
+            text = {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(ui.categories, key = { it.id }) { cat ->
+                        val label = if (cat.isDefault) "${cat.name} (default)" else cat.name
+                        Text(
+                            text = label,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.setCategoryId(cat.id)
+                                    showCategoryPicker = false
+                                }
+                                .padding(vertical = 8.dp)
+                        )
+                    }
+                }
+            }
         )
     }
 }

@@ -21,7 +21,7 @@ interface SessionDao {
     @Query("SELECT * FROM sessions WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): SessionEntity?
 
-    @Query("SELECT * FROM sessions WHERE state = 'ENDED' ORDER BY startTimeMs DESC")
+    @Query("SELECT * FROM sessions WHERE state = 'ENDED' ORDER BY endTimeMs DESC")
     fun observeEndedSessionsNewestFirst(): Flow<List<SessionEntity>>
 
     @Query(

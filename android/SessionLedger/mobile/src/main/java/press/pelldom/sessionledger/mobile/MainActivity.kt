@@ -25,6 +25,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.NavType
 import press.pelldom.sessionledger.mobile.ui.active.ActiveSessionScreen
+import press.pelldom.sessionledger.mobile.ui.categories.CategoryManagementScreen
 import press.pelldom.sessionledger.mobile.ui.navigation.MobileRoutes
 import press.pelldom.sessionledger.mobile.ui.detail.SessionDetailScreen
 import press.pelldom.sessionledger.mobile.ui.sessions.SessionListScreen
@@ -94,7 +95,10 @@ private fun MobileApp() {
                     navController.navigate(MobileRoutes.sessionDetailRoute(id))
                 })
             }
-            composable(MobileRoutes.SETTINGS) { SettingsScreen() }
+            composable(MobileRoutes.SETTINGS) {
+                SettingsScreen(onCategoriesClick = { navController.navigate(MobileRoutes.CATEGORIES) })
+            }
+            composable(MobileRoutes.CATEGORIES) { CategoryManagementScreen() }
 
             composable(
                 route = MobileRoutes.SESSION_DETAIL_ROUTE,

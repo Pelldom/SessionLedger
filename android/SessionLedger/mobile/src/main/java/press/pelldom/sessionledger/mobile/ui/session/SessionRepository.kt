@@ -9,6 +9,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import press.pelldom.sessionledger.mobile.billing.SessionState
+import press.pelldom.sessionledger.mobile.data.db.DefaultCategory
 import press.pelldom.sessionledger.mobile.data.db.dao.SessionDao
 import press.pelldom.sessionledger.mobile.data.db.entities.SessionEntity
 import press.pelldom.sessionledger.mobile.wear.WearSessionStatePublisher
@@ -39,7 +40,7 @@ class SessionRepository(
             state = SessionState.RUNNING,
             pausedTotalMs = 0L,
             lastStateChangeTimeMs = nowMs,
-            categoryId = null,
+            categoryId = DefaultCategory.UNCATEGORIZED_ID,
             notes = null,
             hourlyRateOverride = null,
             roundingModeOverride = null,

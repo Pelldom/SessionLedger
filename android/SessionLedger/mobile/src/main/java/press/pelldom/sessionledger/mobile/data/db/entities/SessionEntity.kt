@@ -17,7 +17,7 @@ data class SessionEntity(
     val pausedTotalMs: Long = 0L,
     val lastStateChangeTimeMs: Long,
 
-    val categoryId: String? = null,
+    val categoryId: String = press.pelldom.sessionledger.mobile.data.db.DefaultCategory.UNCATEGORIZED_ID,
     val notes: String? = null,
 
     // Per-session overrides (nullable = fall back to category/global)

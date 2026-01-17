@@ -14,6 +14,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import press.pelldom.sessionledger.mobile.billing.SessionState
 import press.pelldom.sessionledger.mobile.data.db.AppDatabase
+import press.pelldom.sessionledger.mobile.data.db.DefaultCategory
+import press.pelldom.sessionledger.mobile.data.db.entities.CategoryEntity
 import press.pelldom.sessionledger.mobile.data.db.entities.SessionEntity
 
 data class SessionDetailUiState(
@@ -27,6 +29,9 @@ data class SessionDetailUiState(
     val startMillis: Long? = null,
     val endMillis: Long? = null,
     val durationText: String = "00:00",
+    val categoryId: String = DefaultCategory.UNCATEGORIZED_ID,
+    val categoryName: String = DefaultCategory.UNCATEGORIZED_NAME,
+    val categories: List<CategoryEntity> = emptyList(),
 )
 
 class SessionDetailViewModel(
@@ -45,6 +50,8 @@ class SessionDetailViewModel(
     private var baselineEndMs: Long? = null
     private var startMs: Long? = null
     private var endMs: Long? = null
+    private var baselineCategoryId: String? = null
+    private var categoryId: String = DefaultCategory.UNCATEGORIZED_ID
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -54,13 +61,20 @@ class SessionDetailViewModel(
                 return@launch
             }
 
+            val categories = db.categoryDao().getAll()
+
             loadedSession = session
             baselineStartMs = session.startTimeMs
             baselineEndMs = session.endTimeMs
             startMs = baselineStartMs
             endMs = baselineEndMs
+            baselineCategoryId = session.categoryId
+            categoryId = session.categoryId
 
             val isEditable = session.state == SessionState.ENDED && session.endTimeMs != null
+            val categoryName = categories.firstOrNull { it.id == session.categoryId }?.name
+                ?: categories.firstOrNull { it.id == DefaultCategory.UNCATEGORIZED_ID }?.name
+                ?: DefaultCategory.UNCATEGORIZED_NAME
             _uiState.value = SessionDetailUiState(
                 loading = false,
                 notFound = false,
@@ -71,7 +85,10 @@ class SessionDetailViewModel(
                 endText = formatLocal(endMs ?: startMs!!),
                 startMillis = startMs,
                 endMillis = endMs,
-                durationText = formatDuration(derivedDurationMs(session, startMs!!, endMs))
+                durationText = formatDuration(derivedDurationMs(session, startMs!!, endMs)),
+                categoryId = session.categoryId,
+                categoryName = categoryName,
+                categories = categories
             )
         }
     }
@@ -89,6 +106,12 @@ class SessionDetailViewModel(
     fun discardEdits() {
         startMs = baselineStartMs
         endMs = baselineEndMs
+        categoryId = baselineCategoryId ?: DefaultCategory.UNCATEGORIZED_ID
+        recompute()
+    }
+
+    fun setCategoryId(id: String) {
+        categoryId = id
         recompute()
     }
 
@@ -97,6 +120,7 @@ class SessionDetailViewModel(
         if (!_uiState.value.canSave) return
         val newStart = startMs ?: return
         val newEnd = endMs ?: return
+        val newCategoryId = categoryId
 
         viewModelScope.launch(Dispatchers.IO) {
             val nowMs = System.currentTimeMillis()
@@ -104,6 +128,7 @@ class SessionDetailViewModel(
                 startTimeMs = newStart,
                 endTimeMs = newEnd,
                 lastStateChangeTimeMs = newEnd,
+                categoryId = newCategoryId,
                 updatedAtMs = nowMs
             )
             db.sessionDao().update(updated)
@@ -112,12 +137,20 @@ class SessionDetailViewModel(
             baselineEndMs = newEnd
             startMs = newStart
             endMs = newEnd
+            baselineCategoryId = newCategoryId
+            categoryId = newCategoryId
+            val categories = _uiState.value.categories
+            val categoryName = categories.firstOrNull { it.id == newCategoryId }?.name
+                ?: categories.firstOrNull { it.id == DefaultCategory.UNCATEGORIZED_ID }?.name
+                ?: DefaultCategory.UNCATEGORIZED_NAME
             _uiState.value = _uiState.value.copy(
                 startText = formatLocal(newStart),
                 endText = formatLocal(newEnd),
                 startMillis = newStart,
                 endMillis = newEnd,
                 durationText = formatDuration(derivedDurationMs(updated, newStart, newEnd)),
+                categoryId = newCategoryId,
+                categoryName = categoryName,
                 validationError = null,
                 canSave = false
             )
@@ -154,7 +187,13 @@ class SessionDetailViewModel(
         val baseEnd = baselineEndMs
         val isDirty = start != null && end != null && baseStart != null && baseEnd != null &&
             (start != baseStart || end != baseEnd)
-        val canSave = error == null && isDirty
+        val categoryDirty = (baselineCategoryId != null && categoryId != baselineCategoryId)
+        val canSave = error == null && (isDirty || categoryDirty)
+
+        val categories = _uiState.value.categories
+        val categoryName = categories.firstOrNull { it.id == categoryId }?.name
+            ?: categories.firstOrNull { it.id == DefaultCategory.UNCATEGORIZED_ID }?.name
+            ?: DefaultCategory.UNCATEGORIZED_NAME
 
         _uiState.value = _uiState.value.copy(
             validationError = error,
@@ -164,7 +203,9 @@ class SessionDetailViewModel(
             startText = start?.let { formatLocal(it) } ?: _uiState.value.startText,
             endText = end?.let { formatLocal(it) } ?: _uiState.value.endText,
             startMillis = start,
-            endMillis = end
+            endMillis = end,
+            categoryId = categoryId,
+            categoryName = categoryName
         )
     }
 

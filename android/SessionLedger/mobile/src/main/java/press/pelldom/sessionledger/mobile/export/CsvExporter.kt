@@ -89,7 +89,7 @@ class CsvExporter {
 
                 val values = listOf(
                     csvEscape(session.id),
-                    csvEscape(session.categoryId ?: ""),
+                    csvEscape(session.categoryId),
                     csvEscape(category?.name ?: ""),
                     csvEscape(session.notes ?: ""),
                     csvEscape(startLocal),

@@ -10,9 +10,12 @@ import kotlin.math.max
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import press.pelldom.sessionledger.mobile.data.db.AppDatabase
+import press.pelldom.sessionledger.mobile.data.db.DefaultCategory
+import press.pelldom.sessionledger.mobile.data.db.entities.CategoryEntity
 import press.pelldom.sessionledger.mobile.data.db.entities.SessionEntity
 
 class SessionListViewModel(app: Application) : AndroidViewModel(app) {
@@ -26,24 +29,33 @@ class SessionListViewModel(app: Application) : AndroidViewModel(app) {
         val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
         viewModelScope.launch(Dispatchers.IO) {
-            db.sessionDao()
-                .observeEndedSessionsNewestFirst()
-                .distinctUntilChanged()
-                .collect { sessions ->
-                    val sorted = sessions.sortedByDescending { it.endTimeMs ?: 0L }
-                    _items.value = sorted.map { s -> s.toUiModel(zone, fmt) }
-                }
+            val sessionsFlow = db.sessionDao().observeEndedSessionsNewestFirst().distinctUntilChanged()
+            val categoriesFlow = db.categoryDao().observeAllCategories().distinctUntilChanged()
+
+            sessionsFlow.combine(categoriesFlow) { sessions, categories ->
+                val categoryById = categories.associateBy { it.id }
+                sessions.map { s -> s.toUiModel(zone, fmt, categoryById) }
+            }.collect { items ->
+                _items.value = items
+            }
         }
     }
 
-    private fun SessionEntity.toUiModel(zone: ZoneId, fmt: DateTimeFormatter): SessionListItemUiModel {
+    private fun SessionEntity.toUiModel(
+        zone: ZoneId,
+        fmt: DateTimeFormatter,
+        categoryById: Map<String, CategoryEntity>
+    ): SessionListItemUiModel {
         val dateMs = this.endTimeMs ?: this.startTimeMs
         val dateText = Instant.ofEpochMilli(dateMs).atZone(zone).format(fmt)
 
         val durationMs = max(0L, ((this.endTimeMs ?: this.startTimeMs) - this.startTimeMs) - this.pausedTotalMs)
         val durationText = formatDuration(durationMs)
 
-        val categoryText = if (this.categoryId == null) "Uncategorized" else "Category"
+        val categoryText =
+            categoryById[this.categoryId]?.name
+                ?: categoryById[DefaultCategory.UNCATEGORIZED_ID]?.name
+                ?: DefaultCategory.UNCATEGORIZED_NAME
 
         return SessionListItemUiModel(
             id = this.id,

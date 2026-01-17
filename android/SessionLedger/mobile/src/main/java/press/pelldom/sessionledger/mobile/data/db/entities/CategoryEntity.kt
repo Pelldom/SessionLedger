@@ -9,6 +9,7 @@ import press.pelldom.sessionledger.mobile.billing.RoundingMode
 data class CategoryEntity(
     @PrimaryKey val id: String, // UUID string
     val name: String,
+    val isDefault: Boolean = false,
     val archived: Boolean = false,
 
     // Defaults for sessions in this category (nullable = fall back to global)

@@ -2,6 +2,7 @@ package press.pelldom.sessionledger.mobile.billing
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import press.pelldom.sessionledger.mobile.data.db.DefaultCategory
 import press.pelldom.sessionledger.mobile.data.db.entities.CategoryEntity
 import press.pelldom.sessionledger.mobile.data.db.entities.SessionEntity
 import press.pelldom.sessionledger.mobile.settings.GlobalSettings
@@ -119,7 +120,7 @@ class BillingEngineTest {
 
     private fun endedSession(
         minutesTracked: Long,
-        categoryId: String? = null,
+        categoryId: String = DefaultCategory.UNCATEGORIZED_ID,
         hourlyRateOverride: Double? = null,
         roundingModeOverride: RoundingMode? = null
     ): SessionEntity {
@@ -148,6 +149,7 @@ class BillingEngineTest {
         return CategoryEntity(
             id = "cat-1",
             name = "Category",
+            isDefault = false,
             archived = false,
             defaultHourlyRate = null,
             roundingMode = null,
@@ -163,6 +165,7 @@ class BillingEngineTest {
         return CategoryEntity(
             id = "cat-1",
             name = "Category",
+            isDefault = false,
             archived = false,
             defaultHourlyRate = null,
             roundingMode = null,

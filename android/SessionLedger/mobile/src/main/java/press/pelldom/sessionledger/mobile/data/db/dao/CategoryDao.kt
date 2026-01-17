@@ -11,6 +11,9 @@ import press.pelldom.sessionledger.mobile.data.db.entities.CategoryEntity
 @Dao
 interface CategoryDao {
 
+    @Query("SELECT * FROM categories ORDER BY isDefault DESC, archived ASC, name COLLATE NOCASE ASC")
+    suspend fun getAll(): List<CategoryEntity>
+
     @Query("SELECT * FROM categories WHERE archived = 0 ORDER BY name COLLATE NOCASE ASC")
     fun observeActiveCategories(): Flow<List<CategoryEntity>>
 
