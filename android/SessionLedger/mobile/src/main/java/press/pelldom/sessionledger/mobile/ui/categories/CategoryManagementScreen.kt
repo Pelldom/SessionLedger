@@ -1,5 +1,6 @@
 package press.pelldom.sessionledger.mobile.ui.categories
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,13 +28,30 @@ import androidx.compose.ui.unit.dp
 import java.util.Locale
 import press.pelldom.sessionledger.mobile.data.db.DefaultCategory
 import press.pelldom.sessionledger.mobile.data.db.entities.CategoryEntity
-import press.pelldom.sessionledger.mobile.billing.RoundingMode
+import press.pelldom.sessionledger.mobile.settings.GlobalSettings
+import press.pelldom.sessionledger.mobile.settings.SettingsRepository
+import press.pelldom.sessionledger.mobile.settings.dataStore
 
 @Composable
-fun CategoryManagementScreen(onOpenSettings: () -> Unit) {
+fun CategoryManagementScreen(
+    onOpenSettings: () -> Unit,
+    onOpenCategory: (String) -> Unit
+) {
     val context = LocalContext.current
     val viewModel = remember { CategoryListViewModel(context.applicationContext as android.app.Application) }
     val categories by viewModel.categories.collectAsState()
+    val settingsRepo = remember { SettingsRepository(context.dataStore) }
+    val global by settingsRepo.observeGlobalSettings().collectAsState(
+        initial = GlobalSettings(
+            defaultCurrency = "CAD",
+            defaultHourlyRate = 0.0,
+            defaultRoundingMode = press.pelldom.sessionledger.mobile.billing.RoundingMode.EXACT,
+            defaultRoundingDirection = press.pelldom.sessionledger.mobile.billing.RoundingDirection.UP,
+            minBillableSeconds = null,
+            minChargeAmount = null,
+            lastUsedCategoryId = null
+        )
+    )
 
     var showAdd by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<CategoryEntity?>(null) }
@@ -61,6 +79,8 @@ fun CategoryManagementScreen(onOpenSettings: () -> Unit) {
             items(categories, key = { it.id }) { cat ->
                 CategoryRow(
                     category = cat,
+                    global = global,
+                    onOpen = { if (cat.id != DefaultCategory.UNCATEGORIZED_ID) onOpenCategory(cat.id) },
                     onRename = { renameTarget = cat },
                     onDelete = { deleteTarget = cat }
                 )
@@ -175,7 +195,13 @@ fun CategoryManagementScreen(onOpenSettings: () -> Unit) {
 }
 
 @Composable
-private fun CategoryRow(category: CategoryEntity, onRename: () -> Unit, onDelete: () -> Unit) {
+private fun CategoryRow(
+    category: CategoryEntity,
+    global: GlobalSettings,
+    onOpen: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit
+) {
     val protected = category.id == DefaultCategory.UNCATEGORIZED_ID
     val suffix = if (protected) " (protected)" else ""
 
@@ -185,15 +211,20 @@ private fun CategoryRow(category: CategoryEntity, onRename: () -> Unit, onDelete
             .padding(horizontal = 12.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clickable(enabled = !protected, onClick = onOpen),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
             Text(text = category.name + suffix, style = MaterialTheme.typography.bodyLarge)
             Text(
-                text = billingSummaryLine1(category),
+                text = billingSummaryRate(category, global),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = billingSummaryLine2(category),
+                text = billingSummaryMinimum(category, global),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -206,26 +237,36 @@ private fun CategoryRow(category: CategoryEntity, onRename: () -> Unit, onDelete
     }
 }
 
-private fun billingSummaryLine1(category: CategoryEntity): String {
-    val rate = category.defaultHourlyRate?.let { "CAD ${String.format(Locale.CANADA, "%.2f", it)}/hr" } ?: "Inherits global"
-
-    val rounding = if (category.roundingMode == null) {
-        "Inherits global"
-    } else {
-        when (category.roundingMode) {
-            RoundingMode.EXACT -> "EXACT"
-            RoundingMode.SIX_MINUTE -> {
-                val dir = category.roundingDirection?.name ?: "Inherits global"
-                "SIX_MINUTE ($dir)"
-            }
-        }
-    }
-
-    return "Rate: $rate • Rounding: $rounding"
+private fun billingSummaryRate(category: CategoryEntity, global: GlobalSettings): String {
+    val isDefault = category.defaultHourlyRate == null || category.id == DefaultCategory.UNCATEGORIZED_ID
+    val effective = category.defaultHourlyRate ?: global.defaultHourlyRate
+    val suffix = if (isDefault) " (Default)" else ""
+    return "Rate: $${String.format(Locale.CANADA, "%.2f", effective)}/hr$suffix"
 }
 
-private fun billingSummaryLine2(category: CategoryEntity): String {
-    val minTime = category.minBillableSeconds?.let { "${it / 60L} min" } ?: "Inherits global"
-    val minAmt = category.minChargeAmount?.let { "CAD ${String.format(Locale.CANADA, "%.2f", it)}" } ?: "Inherits global"
-    return "Minimums: time $minTime • amount $minAmt"
+private fun billingSummaryMinimum(category: CategoryEntity, global: GlobalSettings): String {
+    val catTime = category.minBillableSeconds
+    val catAmt = category.minChargeAmount
+    val catNone = (catTime ?: Long.MIN_VALUE) == 0L && (catAmt ?: Double.NaN) == 0.0
+    val catHasOverride = catTime != null || catAmt != null
+
+    val (effectiveText, isDefault) = when {
+        category.id == DefaultCategory.UNCATEGORIZED_ID -> formatGlobalMinimum(global) to true
+        catNone -> "None" to false
+        catTime != null && catTime > 0L -> "${String.format(Locale.CANADA, "%.2f", catTime.toDouble() / 3600.0)} hr" to false
+        catAmt != null && catAmt > 0.0 -> "$${String.format(Locale.CANADA, "%.2f", catAmt)}" to false
+        !catHasOverride -> formatGlobalMinimum(global) to true
+        else -> formatGlobalMinimum(global) to true
+    }
+
+    val suffix = if (isDefault) " (Default)" else ""
+    return "Minimum: $effectiveText$suffix"
+}
+
+private fun formatGlobalMinimum(global: GlobalSettings): String {
+    return when {
+        global.minBillableSeconds != null -> "${String.format(Locale.CANADA, "%.2f", global.minBillableSeconds.toDouble() / 3600.0)} hr"
+        global.minChargeAmount != null -> "$${String.format(Locale.CANADA, "%.2f", global.minChargeAmount)}"
+        else -> "None"
+    }
 }

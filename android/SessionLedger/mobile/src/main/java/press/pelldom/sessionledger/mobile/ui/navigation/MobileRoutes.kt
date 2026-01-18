@@ -9,6 +9,10 @@ object MobileRoutes {
     const val SESSION_DETAIL = "session_detail"
     const val SESSION_DETAIL_ROUTE = "session_detail/{sessionId}"
 
+    const val CATEGORY_DETAIL = "category_detail"
+    const val CATEGORY_DETAIL_ROUTE = "category_detail/{categoryId}"
+
     fun sessionDetailRoute(sessionId: String): String = "session_detail/$sessionId"
+    fun categoryDetailRoute(categoryId: String): String = "category_detail/$categoryId"
 }
 

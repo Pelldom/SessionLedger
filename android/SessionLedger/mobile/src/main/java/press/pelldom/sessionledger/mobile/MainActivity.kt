@@ -32,6 +32,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.NavType
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import press.pelldom.sessionledger.mobile.ui.active.ActiveSessionScreen
+import press.pelldom.sessionledger.mobile.ui.categories.CategoryDetailScreen
 import press.pelldom.sessionledger.mobile.ui.categories.CategoryManagementScreen
 import press.pelldom.sessionledger.mobile.ui.navigation.MobileRoutes
 import press.pelldom.sessionledger.mobile.ui.detail.SessionDetailScreen
@@ -134,9 +135,23 @@ private fun MobileApp() {
                 })
             }
             composable(MobileRoutes.CATEGORIES) {
-                CategoryManagementScreen(onOpenSettings = { navController.navigate(MobileRoutes.SETTINGS) })
+                CategoryManagementScreen(
+                    onOpenSettings = { navController.navigate(MobileRoutes.SETTINGS) },
+                    onOpenCategory = { id -> navController.navigate(MobileRoutes.categoryDetailRoute(id)) }
+                )
             }
             composable(MobileRoutes.SETTINGS) { SettingsScreen(onBack = { navController.popBackStack() }) }
+
+            composable(
+                route = MobileRoutes.CATEGORY_DETAIL_ROUTE,
+                arguments = listOf(navArgument("categoryId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val categoryId = backStackEntry.arguments?.getString("categoryId") ?: return@composable
+                CategoryDetailScreen(
+                    categoryId = categoryId,
+                    onDone = { navController.popBackStack(MobileRoutes.CATEGORIES, false) }
+                )
+            }
 
             composable(
                 route = MobileRoutes.SESSION_DETAIL_ROUTE,
