@@ -7,6 +7,8 @@
 - Live elapsed
 - Quick link: Sessions, Reports, Settings
 
+Note: For edit screens and navigation behavior standards, see `docs/ui_navigation_standards.md`.
+
 2) Sessions
 - List with filters (date range, category)
 - Tap -> Session Detail

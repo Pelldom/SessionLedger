@@ -33,6 +33,7 @@ data class SessionDetailUiState(
     val isEditable: Boolean = false,
     val validationError: String? = null,
     val canSave: Boolean = false,
+    val hasUnsavedTimingChanges: Boolean = false,
     val startText: String = "",
     val endText: String = "",
     val startMillis: Long? = null,
@@ -67,7 +68,6 @@ class SessionDetailViewModel(
     private var baselineEndMs: Long? = null
     private var startMs: Long? = null
     private var endMs: Long? = null
-    private var baselineCategoryId: String? = null
     private var categoryId: String = DefaultCategory.UNCATEGORIZED_ID
 
     init {
@@ -85,7 +85,6 @@ class SessionDetailViewModel(
             baselineEndMs = session.endTimeMs
             startMs = baselineStartMs
             endMs = baselineEndMs
-            baselineCategoryId = session.categoryId
             categoryId = session.categoryId
 
             val isEditable = session.state == SessionState.ENDED && session.endTimeMs != null
@@ -171,7 +170,6 @@ class SessionDetailViewModel(
     fun discardEdits() {
         startMs = baselineStartMs
         endMs = baselineEndMs
-        categoryId = baselineCategoryId ?: DefaultCategory.UNCATEGORIZED_ID
         recompute()
     }
 
@@ -230,7 +228,6 @@ class SessionDetailViewModel(
             baselineEndMs = newEnd
             startMs = newStart
             endMs = newEnd
-            baselineCategoryId = newCategoryId
             categoryId = newCategoryId
             val categories = _uiState.value.categories
             val categoryName = categories.firstOrNull { it.id == newCategoryId }?.name
@@ -280,8 +277,7 @@ class SessionDetailViewModel(
         val baseEnd = baselineEndMs
         val isDirty = start != null && end != null && baseStart != null && baseEnd != null &&
             (start != baseStart || end != baseEnd)
-        val categoryDirty = (baselineCategoryId != null && categoryId != baselineCategoryId)
-        val canSave = error == null && (isDirty || categoryDirty)
+        val canSave = error == null && isDirty
 
         val categories = _uiState.value.categories
         val categoryName = categories.firstOrNull { it.id == categoryId }?.name
@@ -291,6 +287,7 @@ class SessionDetailViewModel(
         _uiState.value = _uiState.value.copy(
             validationError = error,
             canSave = canSave,
+                hasUnsavedTimingChanges = isDirty,
             durationText = durationText,
             isEditable = true,
             startText = start?.let { formatLocal(it) } ?: _uiState.value.startText,

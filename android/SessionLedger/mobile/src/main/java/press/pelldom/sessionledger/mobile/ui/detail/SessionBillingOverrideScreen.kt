@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,6 +27,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -38,13 +41,19 @@ fun SessionBillingOverrideScreen(sessionId: String, onDone: () -> Unit) {
     val vm = remember { SessionBillingOverrideViewModel(context.applicationContext as android.app.Application, sessionId) }
     val ui by vm.ui.collectAsState()
     val scroll = rememberScrollState()
+    var showBackConfirm by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Session Billing Overrides") },
                 navigationIcon = {
-                    IconButton(onClick = onDone) {
+                    IconButton(
+                        onClick = {
+                            if (!ui.hasUnsavedChanges) onDone()
+                            else showBackConfirm = true
+                        }
+                    ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
@@ -57,11 +66,11 @@ fun SessionBillingOverrideScreen(sessionId: String, onDone: () -> Unit) {
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedButton(modifier = Modifier.weight(1f), onClick = onDone) { Text("Cancel") }
+                OutlinedButton(modifier = Modifier.weight(1f), onClick = { vm.discardEdits() }) { Text("Cancel") }
                 Button(
                     modifier = Modifier.weight(1f),
                     enabled = ui.canSave,
-                    onClick = { vm.save(onDone) }
+                    onClick = { vm.save(onDone = {}) }
                 ) { Text("Save") }
             }
         }
@@ -164,6 +173,35 @@ fun SessionBillingOverrideScreen(sessionId: String, onDone: () -> Unit) {
                 )
             }
         }
+    }
+
+    if (showBackConfirm) {
+        AlertDialog(
+            onDismissRequest = { showBackConfirm = false },
+            title = { Text("Save changes?") },
+            text = { Text("You have unsaved changes.") },
+            confirmButton = {
+                Button(
+                    enabled = ui.canSave,
+                    onClick = {
+                        showBackConfirm = false
+                        vm.save(onDone = onDone)
+                    }
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            showBackConfirm = false
+                            vm.discardEdits()
+                            onDone()
+                        }
+                    ) { Text("Discard") }
+                    OutlinedButton(onClick = { showBackConfirm = false }) { Text("Cancel") }
+                }
+            }
+        )
     }
 }
 

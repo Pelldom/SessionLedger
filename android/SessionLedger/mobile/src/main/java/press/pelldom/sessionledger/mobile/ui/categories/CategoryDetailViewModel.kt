@@ -43,6 +43,7 @@ data class CategoryDetailUiState(
     val globalMinChargeAmount: Double? = null,
 
     val canSave: Boolean = false,
+    val hasUnsavedChanges: Boolean = false,
     val validationError: String? = null,
 )
 
@@ -199,13 +200,28 @@ class CategoryDetailViewModel(
             )
             db.categoryDao().update(updated)
             loaded = updated
-            _ui.value = current.copy(canSave = false, validationError = null, name = updated.name)
+            _ui.value = current.copy(canSave = false, hasUnsavedChanges = false, validationError = null, name = updated.name)
             withContext(Dispatchers.Main) { onDone() }
         }
     }
 
-    fun discard(onDone: () -> Unit) {
-        onDone()
+    fun discardEdits() {
+        val base = loaded ?: return
+        val current = _ui.value
+        val (minSel, minHoursText, minChargeText) = toMinimumUi(base)
+        _ui.value = current.copy(
+            name = base.name,
+            nameEdit = base.name,
+            hourlyRate = base.defaultHourlyRate?.toString().orEmpty(),
+            roundingMode = base.roundingMode,
+            roundingDirection = base.roundingDirection,
+            minimumSelection = minSel,
+            minHours = minHoursText,
+            minChargeAmount = minChargeText,
+            canSave = false,
+            hasUnsavedChanges = false,
+            validationError = null
+        )
     }
 
     private fun recompute() {
@@ -254,7 +270,8 @@ class CategoryDetailViewModel(
 
         _ui.value = current.copy(
             validationError = error,
-            canSave = dirty && error == null
+            canSave = dirty && error == null,
+            hasUnsavedChanges = dirty
         )
     }
 

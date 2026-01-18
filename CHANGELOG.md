@@ -37,3 +37,16 @@ All notable changes to SessionLedger will be documented in this file.
 ## [0.1.5] - 2026-01-18
 ### Added
 - Session-level billing overrides (rate, rounding, minimum) with live BillingEngine recalculation
+
+## [0.1.6] - 2026-01-18
+### Fixed
+- Session Detail Save button state now reflects only unsaved timing edits (billing overrides no longer affect it)
+
+## [0.1.7] - 2026-01-18
+### Changed
+- Improved Session Detail navigation with a back arrow and Save/Discard prompt when timing edits are unsaved
+
+## [0.1.8] - 2026-01-18
+### Changed
+- Unified navigation behavior across edit screens (Back arrow prompts to Save/Discard/Cancel when changes are unsaved)
+- Standardized Save/Cancel semantics so they do not navigate (navigation occurs via Back only)

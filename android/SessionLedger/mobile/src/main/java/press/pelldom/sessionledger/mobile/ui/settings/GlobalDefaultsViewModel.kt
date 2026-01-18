@@ -28,6 +28,7 @@ data class GlobalDefaultsUiState(
     val minHours: String = "",
     val minChargeAmount: String = "",
     val canSave: Boolean = false,
+    val hasUnsavedChanges: Boolean = false,
     val validationError: String? = null,
 )
 
@@ -128,6 +129,22 @@ class GlobalDefaultsViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun discardEdits() {
+        val base = baseline ?: return
+        val (sel, hours, charge) = toMinimumUi(base)
+        _ui.value = _ui.value.copy(
+            hourlyRate = String.format(Locale.CANADA, "%.2f", base.defaultHourlyRate),
+            roundingMode = base.defaultRoundingMode,
+            roundingDirection = base.defaultRoundingDirection,
+            minimumSelection = sel,
+            minHours = hours,
+            minChargeAmount = charge,
+            canSave = false,
+            hasUnsavedChanges = false,
+            validationError = null
+        )
+    }
+
     private fun recompute() {
         val base = baseline ?: return
         val current = _ui.value
@@ -157,7 +174,8 @@ class GlobalDefaultsViewModel(app: Application) : AndroidViewModel(app) {
 
         _ui.value = current.copy(
             validationError = error,
-            canSave = dirty && error == null
+            canSave = dirty && error == null,
+            hasUnsavedChanges = dirty
         )
     }
 

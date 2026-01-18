@@ -44,7 +44,8 @@ data class SessionBillingOverrideUiState(
     val effectiveMinimumText: String = "",
     val finalAmountText: String = "",
 
-    val canSave: Boolean = false
+    val canSave: Boolean = false,
+    val hasUnsavedChanges: Boolean = false
 )
 
 class SessionBillingOverrideViewModel(
@@ -182,8 +183,28 @@ class SessionBillingOverrideViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             db.sessionDao().update(updated)
             baseline = updated
+            // Refresh derived text and clear dirty state, but let caller decide whether to navigate.
+            recompute()
             withContext(Dispatchers.Main) { onDone() }
         }
+    }
+
+    fun discardEdits() {
+        val base = baseline ?: return
+        val current = _ui.value
+        val (minSel, minHours, minCharge) = toMinimumUi(base)
+        _ui.value = current.copy(
+            hourlyRateOverride = base.hourlyRateOverride?.toString().orEmpty(),
+            roundingModeOverride = base.roundingModeOverride,
+            roundingDirectionOverride = base.roundingDirectionOverride,
+            minimumSelection = minSel,
+            minHours = minHours,
+            minChargeAmount = minCharge,
+            canSave = false,
+            hasUnsavedChanges = false,
+            validationError = null
+        )
+        recompute()
     }
 
     private fun recompute() {
@@ -235,6 +256,7 @@ class SessionBillingOverrideViewModel(
         _ui.value = current.copy(
             validationError = error,
             canSave = dirty && error == null,
+            hasUnsavedChanges = dirty,
             effectiveRateText = formatRate(resolved.ratePerHour, resolved.rateSource),
             effectiveRoundingText = formatRounding(resolved.roundingMode, resolved.roundingDirection, resolved.roundingSource),
             effectiveMinimumText = formatMinimum(resolved.minTimeSeconds, resolved.minTimeSource, resolved.minCharge, resolved.minChargeSource),

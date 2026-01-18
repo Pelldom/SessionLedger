@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -39,13 +40,19 @@ fun SettingsScreen(onBack: () -> Unit) {
     val vm = remember { GlobalDefaultsViewModel(context.applicationContext as android.app.Application) }
     val ui by vm.ui.collectAsState()
     val scrollState = rememberScrollState()
+    var showBackConfirm by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
             title = { Text("Global Billing Defaults") },
             navigationIcon = {
-                IconButton(onClick = onBack) {
+                IconButton(
+                    onClick = {
+                        if (!ui.hasUnsavedChanges) onBack()
+                        else showBackConfirm = true
+                    }
+                ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back"
@@ -63,12 +70,12 @@ fun SettingsScreen(onBack: () -> Unit) {
             ) {
                 Button(
                     modifier = Modifier.weight(1f),
-                    onClick = onBack
+                    onClick = { vm.discardEdits() }
                 ) { Text("Cancel") }
                 Button(
                     modifier = Modifier.weight(1f),
                     enabled = ui.canSave,
-                    onClick = { vm.save(onBack) }
+                    onClick = { vm.save(onDone = {}) }
                 ) { Text("Save") }
             }
         }
@@ -172,6 +179,35 @@ fun SettingsScreen(onBack: () -> Unit) {
             )
         }
         }
+    }
+
+    if (showBackConfirm) {
+        AlertDialog(
+            onDismissRequest = { showBackConfirm = false },
+            title = { Text("Save changes?") },
+            text = { Text("You have unsaved changes.") },
+            confirmButton = {
+                Button(
+                    enabled = ui.canSave,
+                    onClick = {
+                        showBackConfirm = false
+                        vm.save(onDone = onBack)
+                    }
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            showBackConfirm = false
+                            vm.discardEdits()
+                            onBack()
+                        }
+                    ) { Text("Discard") }
+                    Button(onClick = { showBackConfirm = false }) { Text("Cancel") }
+                }
+            }
+        )
     }
 }
 

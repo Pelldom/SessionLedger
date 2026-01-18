@@ -17,8 +17,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -30,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import java.time.Instant
 import java.time.LocalDateTime
@@ -41,7 +45,7 @@ import press.pelldom.sessionledger.mobile.ui.categories.CategoryPickerDialog
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-fun SessionDetailScreen(sessionId: String, onDone: () -> Unit) {
+fun SessionDetailScreen(sessionId: String, onDone: () -> Unit, onOpenBillingOverrides: () -> Unit) {
     val context = LocalContext.current
     val viewModel = remember {
         SessionDetailViewModel(context.applicationContext as android.app.Application, sessionId)
@@ -56,15 +60,33 @@ fun SessionDetailScreen(sessionId: String, onDone: () -> Unit) {
     var pendingDate by remember { mutableStateOf<LocalDate?>(null) }
     var pendingInitialTime by remember { mutableStateOf<LocalTime?>(null) }
     var showCategoryPicker by remember { mutableStateOf(false) }
+    var showBackConfirm by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        horizontalAlignment = Alignment.Start
-    ) {
-        Text(text = "Session Detail", style = MaterialTheme.typography.headlineSmall)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Session Details") },
+                navigationIcon = {
+                    IconButton(
+                        onClick = {
+                            if (!ui.hasUnsavedTimingChanges) onDone()
+                            else showBackConfirm = true
+                        }
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { inner ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(inner)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
 
         if (ui.loading) {
             Text(text = "Loading…")
@@ -110,9 +132,21 @@ fun SessionDetailScreen(sessionId: String, onDone: () -> Unit) {
         // Billing Summary (read-only) - placed after session detail fields
         if (ui.billingFinalAmountText.isNotBlank()) {
             Text(text = "Billing Summary", style = MaterialTheme.typography.titleMedium)
-            Text(text = "Rate: ${ui.billingHourlyRateText}", style = MaterialTheme.typography.bodyMedium)
-            Text(text = "Rounding: ${ui.billingRoundingText}", style = MaterialTheme.typography.bodyMedium)
-            Text(text = "Minimum: ${ui.billingMinimumText}", style = MaterialTheme.typography.bodyMedium)
+            TappableSummaryRow(
+                label = "Rate",
+                value = ui.billingHourlyRateText,
+                onClick = onOpenBillingOverrides
+            )
+            TappableSummaryRow(
+                label = "Rounding",
+                value = ui.billingRoundingText,
+                onClick = onOpenBillingOverrides
+            )
+            TappableSummaryRow(
+                label = "Minimum",
+                value = ui.billingMinimumText,
+                onClick = onOpenBillingOverrides
+            )
             Text(
                 text = ui.billingFinalAmountText,
                 style = MaterialTheme.typography.headlineSmall
@@ -127,7 +161,6 @@ fun SessionDetailScreen(sessionId: String, onDone: () -> Unit) {
             OutlinedButton(
                 onClick = {
                     viewModel.discardEdits()
-                    onDone()
                 }
             ) {
                 Text("Cancel")
@@ -135,11 +168,41 @@ fun SessionDetailScreen(sessionId: String, onDone: () -> Unit) {
 
             Button(
                 enabled = ui.canSave,
-                onClick = { viewModel.save(onSuccess = onDone) }
+                onClick = { viewModel.save(onSuccess = {}) }
             ) {
                 Text("Save")
             }
         }
+        }
+    }
+
+    if (showBackConfirm) {
+        AlertDialog(
+            onDismissRequest = { showBackConfirm = false },
+            title = { Text("Save changes?") },
+            text = { Text("You have unsaved timing changes.") },
+            confirmButton = {
+                Button(
+                    enabled = ui.canSave,
+                    onClick = {
+                        showBackConfirm = false
+                        viewModel.save(onSuccess = onDone)
+                    }
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            showBackConfirm = false
+                            viewModel.discardEdits()
+                            onDone()
+                        }
+                    ) { Text("Discard") }
+                    OutlinedButton(onClick = { showBackConfirm = false }) { Text("Cancel") }
+                }
+            }
+        )
     }
 
     if (showDatePicker) {
@@ -291,3 +354,23 @@ private fun ReadonlyPickerField(label: String, value: String, onClick: () -> Uni
     }
 }
 
+@Composable
+private fun TappableSummaryRow(label: String, value: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = label, style = MaterialTheme.typography.labelLarge)
+            Text(text = value, style = MaterialTheme.typography.bodyLarge)
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}

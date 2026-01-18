@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,6 +26,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -39,13 +42,19 @@ fun CategoryDetailScreen(categoryId: String, onDone: () -> Unit) {
     }
     val ui by vm.ui.collectAsState()
     val scrollState = rememberScrollState()
+    var showBackConfirm by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(text = "Category Defaults") },
                 navigationIcon = {
-                    IconButton(onClick = onDone) {
+                    IconButton(
+                        onClick = {
+                            if (!ui.hasUnsavedChanges) onDone()
+                            else showBackConfirm = true
+                        }
+                    ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
@@ -61,12 +70,12 @@ fun CategoryDetailScreen(categoryId: String, onDone: () -> Unit) {
             ) {
                 OutlinedButton(
                     modifier = Modifier.weight(1f),
-                    onClick = onDone
+                    onClick = { vm.discardEdits() }
                 ) { Text("Cancel") }
                 Button(
                     modifier = Modifier.weight(1f),
                     enabled = ui.canSave,
-                    onClick = { vm.save(onDone) }
+                    onClick = { vm.save(onDone = {}) }
                 ) { Text("Save") }
             }
         }
@@ -170,6 +179,35 @@ fun CategoryDetailScreen(categoryId: String, onDone: () -> Unit) {
                 )
             }
         }
+    }
+
+    if (showBackConfirm) {
+        AlertDialog(
+            onDismissRequest = { showBackConfirm = false },
+            title = { Text("Save changes?") },
+            text = { Text("You have unsaved changes.") },
+            confirmButton = {
+                Button(
+                    enabled = ui.canSave,
+                    onClick = {
+                        showBackConfirm = false
+                        vm.save(onDone = onDone)
+                    }
+                ) { Text("Save") }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            showBackConfirm = false
+                            vm.discardEdits()
+                            onDone()
+                        }
+                    ) { Text("Discard") }
+                    OutlinedButton(onClick = { showBackConfirm = false }) { Text("Cancel") }
+                }
+            }
+        )
     }
 }
 
