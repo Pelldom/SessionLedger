@@ -222,14 +222,15 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
             MediaStore.MediaColumns._ID,
             MediaStore.MediaColumns.DISPLAY_NAME,
             MediaStore.MediaColumns.MIME_TYPE,
-            MediaStore.MediaColumns.RELATIVE_PATH,
             MediaStore.MediaColumns.DATE_ADDED
         )
 
-        val selection = "${MediaStore.MediaColumns.MIME_TYPE} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
+        // Do NOT filter by RELATIVE_PATH; it is not consistent across devices/OS versions.
+        // Instead, match by MIME type and our known export filename prefix.
+        val selection = "${MediaStore.MediaColumns.MIME_TYPE} = ? AND ${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ?"
         val selectionArgs = arrayOf(
             CsvExporter.EXPORT_MIME_TYPE,
-            CsvExporter.EXPORT_RELATIVE_PATH
+            "SessionLedger_Export_%"
         )
 
         val sortOrder = "${MediaStore.MediaColumns.DATE_ADDED} DESC"
