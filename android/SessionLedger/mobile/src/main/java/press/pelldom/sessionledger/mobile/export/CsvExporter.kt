@@ -4,7 +4,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.provider.MediaStore
 import java.time.Instant
 import java.time.LocalDateTime
@@ -19,6 +18,12 @@ import press.pelldom.sessionledger.mobile.data.db.AppDatabase
 import press.pelldom.sessionledger.mobile.settings.SettingsRepository
 
 class CsvExporter {
+
+    companion object {
+        // MediaStore Downloads relative paths are "Download/<subdir>" (typically ending with a slash when read back).
+        const val EXPORT_RELATIVE_PATH: String = "Download/SessionLedger"
+        const val EXPORT_MIME_TYPE: String = "text/csv"
+    }
 
     suspend fun exportEndedSessions(
         db: AppDatabase,
@@ -128,13 +133,13 @@ class CsvExporter {
 
         val nowLocal = LocalDateTime.now(zoneId)
         val fileName = "SessionLedger_Export_${nowLocal.format(fileStampFormatter)}.csv"
-        val relativePath = Environment.DIRECTORY_DOWNLOADS + "/SessionLedger/"
+        val relativePath = EXPORT_RELATIVE_PATH
 
         // Scoped storage friendly: write into Downloads/SessionLedger via MediaStore.
         // This produces a user-visible file without requesting broad storage permissions on modern Android.
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-            put(MediaStore.MediaColumns.MIME_TYPE, "text/csv")
+            put(MediaStore.MediaColumns.MIME_TYPE, EXPORT_MIME_TYPE)
             if (Build.VERSION.SDK_INT >= 29) {
                 put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
                 put(MediaStore.MediaColumns.IS_PENDING, 1)

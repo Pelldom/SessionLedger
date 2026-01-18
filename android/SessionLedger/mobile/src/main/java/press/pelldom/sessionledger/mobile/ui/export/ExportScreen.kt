@@ -169,6 +169,40 @@ fun ExportScreen(onDone: () -> Unit) {
                     Text("Share last export")
                 }
             }
+
+            Text(text = "Previous Exports", style = MaterialTheme.typography.titleMedium)
+            if (ui.history.isEmpty()) {
+                Text(text = "No previous exports", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                ui.history.forEach { item ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                viewModel.openExport(context, item.uriString)
+                            }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = item.name, style = MaterialTheme.typography.bodyMedium)
+                            if (item.timestampText.isNotBlank()) {
+                                Text(
+                                    text = item.timestampText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = "Open export",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
         }
     }
 

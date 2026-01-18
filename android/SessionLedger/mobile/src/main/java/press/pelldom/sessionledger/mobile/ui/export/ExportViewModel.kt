@@ -1,13 +1,17 @@
 package press.pelldom.sessionledger.mobile.ui.export
 
 import android.app.Application
+import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +23,12 @@ import press.pelldom.sessionledger.mobile.data.db.entities.CategoryEntity
 import press.pelldom.sessionledger.mobile.export.CsvExporter
 import press.pelldom.sessionledger.mobile.settings.SettingsRepository
 import press.pelldom.sessionledger.mobile.settings.dataStore
+
+data class ExportHistoryItem(
+    val name: String,
+    val uriString: String,
+    val timestampText: String
+)
 
 data class ExportUiState(
     val loading: Boolean = true,
@@ -37,6 +47,7 @@ data class ExportUiState(
 
     val exporting: Boolean = false,
     val lastExportUri: String? = null,
+    val history: List<ExportHistoryItem> = emptyList(),
     val statusMessage: String? = null
 )
 
@@ -44,6 +55,7 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
     private val db = AppDatabase.getInstance(app)
     private val settingsRepo = SettingsRepository(app.dataStore)
     private val zone = ZoneId.systemDefault()
+    private val dateFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
     private val _ui = MutableStateFlow(ExportUiState())
     val ui: StateFlow<ExportUiState> = _ui
@@ -76,6 +88,10 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
                 _ui.value = _ui.value.copy(loading = false, categories = cats)
                 recompute()
             }
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            refreshHistory()
         }
     }
 
@@ -154,6 +170,7 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
                     lastExportUri = uri.toString(),
                     statusMessage = "Export saved to Downloads/SessionLedger"
                 )
+                refreshHistory()
             } catch (t: Throwable) {
                 _ui.value = _ui.value.copy(statusMessage = "Export failed: ${t.message ?: "Unknown error"}")
             } finally {
@@ -180,6 +197,70 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
                 _ui.value = _ui.value.copy(statusMessage = "Share failed: ${t.message ?: "Unknown error"}")
             }
         }
+    }
+
+    fun openExport(context: Context, uriString: String) {
+        viewModelScope.launch(Dispatchers.Main) {
+            try {
+                val uri = Uri.parse(uriString)
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, CsvExporter.EXPORT_MIME_TYPE)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(intent)
+            } catch (t: Throwable) {
+                _ui.value = _ui.value.copy(statusMessage = "Unable to open export: ${t.message ?: "Unknown error"}")
+            }
+        }
+    }
+
+    private fun refreshHistory() {
+        val resolver = getApplication<Application>().contentResolver
+        val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+
+        val projection = arrayOf(
+            MediaStore.MediaColumns._ID,
+            MediaStore.MediaColumns.DISPLAY_NAME,
+            MediaStore.MediaColumns.MIME_TYPE,
+            MediaStore.MediaColumns.RELATIVE_PATH,
+            MediaStore.MediaColumns.DATE_ADDED
+        )
+
+        val selection = "${MediaStore.MediaColumns.MIME_TYPE} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
+        val selectionArgs = arrayOf(
+            CsvExporter.EXPORT_MIME_TYPE,
+            "${CsvExporter.EXPORT_RELATIVE_PATH}%"
+        )
+
+        val sortOrder = "${MediaStore.MediaColumns.DATE_ADDED} DESC"
+        val items = mutableListOf<ExportHistoryItem>()
+
+        resolver.query(collection, projection, selection, selectionArgs, sortOrder)?.use { cursor ->
+            val idCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+            val nameCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+            val dateCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED)
+
+            while (cursor.moveToNext()) {
+                val id = cursor.getLong(idCol)
+                val name = cursor.getString(nameCol) ?: ""
+                val dateAddedSec = cursor.getLong(dateCol)
+                val timestampText = try {
+                    Instant.ofEpochSecond(dateAddedSec).atZone(zone).format(dateFmt)
+                } catch (_: Throwable) {
+                    ""
+                }
+                val uri = ContentUris.withAppendedId(collection, id)
+                items.add(
+                    ExportHistoryItem(
+                        name = name,
+                        uriString = uri.toString(),
+                        timestampText = timestampText
+                    )
+                )
+            }
+        }
+
+        _ui.value = _ui.value.copy(history = items)
     }
 
     private fun recompute() {
