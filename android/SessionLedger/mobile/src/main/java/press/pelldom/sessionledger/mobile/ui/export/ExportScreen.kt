@@ -39,6 +39,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import android.util.Log
+import android.app.DownloadManager
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.provider.DocumentsContract
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -192,39 +196,58 @@ fun ExportScreen(onDone: () -> Unit) {
                 }
             }
 
-            Text(text = "Previous Exports", style = MaterialTheme.typography.titleMedium)
-            if (ui.history.isEmpty()) {
-                Text(text = "No previous exports", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                ui.history.forEach { item ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                viewModel.openExport(context, item.uriString)
-                            }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = item.name, style = MaterialTheme.typography.bodyMedium)
-                            if (item.timestampText.isNotBlank()) {
-                                Text(
-                                    text = item.timestampText,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = "Open export",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            Text(text = "Export Location", style = MaterialTheme.typography.titleMedium)
+            Text(text = "Downloads / SessionLedger", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    Log.d("SL_EXPORT", "Open Export Folder clicked")
+                    // Try (1) Downloads UI, (2) direct folder URI, (3) SAF folder picker.
+                    try {
+                        context.startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        return@OutlinedButton
+                    } catch (_: Throwable) {
+                        // fall through
+                    }
+
+                    try {
+                        val downloadDoc = "primary:Download"
+                        val uri = DocumentsContract.buildDocumentUri(
+                            "com.android.externalstorage.documents",
+                            downloadDoc
                         )
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(uri, DocumentsContract.Document.MIME_TYPE_DIR)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(intent)
+                        return@OutlinedButton
+                    } catch (_: Throwable) {
+                        // fall through
+                    }
+
+                    try {
+                        val treeUri = DocumentsContract.buildTreeDocumentUri(
+                            "com.android.externalstorage.documents",
+                            "primary:Download"
+                        )
+                        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+                            putExtra(DocumentsContract.EXTRA_INITIAL_URI, treeUri)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(intent)
+                    } catch (t: ActivityNotFoundException) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("No file manager found. Exports are in Downloads/SessionLedger.")
+                        }
+                    } catch (_: Throwable) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Exports are saved to Downloads/SessionLedger.")
+                        }
                     }
                 }
-            }
+            ) { Text("Open Export Folder") }
         }
     }
 
