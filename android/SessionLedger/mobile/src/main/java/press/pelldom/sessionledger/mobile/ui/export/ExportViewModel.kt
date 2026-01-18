@@ -148,20 +148,21 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
         _ui.value = _ui.value.copy(statusMessage = null)
     }
 
-    fun export(context: Context) {
+    suspend fun exportNow(context: Context): Uri {
         val current = _ui.value
-        if (!current.canExport || current.exporting) return
+        if (!current.canExport) throw IllegalStateException("Export failed: invalid export configuration.")
+        if (current.exporting) throw IllegalStateException("Export failed: export already in progress.")
 
-        val start = requireNotNull(current.startDate)
-        val end = requireNotNull(current.endDate)
+        val start = current.startDate ?: throw IllegalStateException("Export failed: start date missing.")
+        val end = current.endDate ?: throw IllegalStateException("Export failed: end date missing.")
         val startMs = start.atStartOfDay(zone).toInstant().toEpochMilli()
         val endExclusiveMs = end.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val filters = if (current.allCategories) null else current.selectedCategoryIds
 
-        viewModelScope.launch(Dispatchers.IO) {
-            _ui.value = _ui.value.copy(exporting = true, statusMessage = null)
-            try {
-                val uri = CsvExporter().exportEndedSessions(
+        _ui.value = _ui.value.copy(exporting = true, statusMessage = null)
+        try {
+            val uri = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                CsvExporter().exportEndedSessions(
                     db = db,
                     settingsRepo = settingsRepo,
                     startFilter = startMs,
@@ -170,20 +171,13 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
                     categoryFilters = filters,
                     context = context
                 )
-                _ui.value = _ui.value.copy(
-                    lastExportUri = uri.toString(),
-                    statusMessage = "Export saved to Downloads/SessionLedger"
-                )
-                refreshHistory()
-            } catch (t: Throwable) {
-                val msg = t.message ?: "Unknown error"
-                val messageToShow = if (msg.startsWith("Export failed:")) msg else "Export failed: $msg"
-                _ui.value = _ui.value.copy(statusMessage = messageToShow)
-            } finally {
-                withContext(Dispatchers.Main) {
-                    _ui.value = _ui.value.copy(exporting = false)
-                }
             }
+
+            _ui.value = _ui.value.copy(lastExportUri = uri.toString())
+            refreshHistory()
+            return uri
+        } finally {
+            _ui.value = _ui.value.copy(exporting = false)
         }
     }
 
@@ -266,7 +260,7 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
 
-        Log.d(TAG, "history count=${items.size}")
+        Log.d("SL_EXPORT", "Query history count=${items.size}")
         _ui.value = _ui.value.copy(history = items)
     }
 

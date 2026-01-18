@@ -23,6 +23,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -31,10 +33,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import android.util.Log
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -50,12 +55,15 @@ fun ExportScreen(onDone: () -> Unit) {
     val scroll = rememberScrollState()
     val zone = remember { ZoneId.systemDefault() }
     val dateFmt = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd") }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     var showBackConfirm by remember { mutableStateOf(false) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Export Sessions") },
@@ -92,7 +100,21 @@ fun ExportScreen(onDone: () -> Unit) {
                 Button(
                     modifier = Modifier.weight(1f),
                     enabled = ui.canExport && !ui.exporting,
-                    onClick = { viewModel.export(context) }
+                    onClick = {
+                        Log.d("SL_EXPORT", "Export button clicked")
+                        scope.launch { snackbarHostState.showSnackbar("Export started...") }
+
+                        scope.launch {
+                            try {
+                                val uri = viewModel.exportNow(context)
+                                Log.d("SL_EXPORT", "Export success: uri=$uri")
+                                snackbarHostState.showSnackbar("Export saved to Downloads/SessionLedger")
+                            } catch (t: Throwable) {
+                                Log.e("SL_EXPORT", "Export failed", t)
+                                snackbarHostState.showSnackbar("Export failed: ${t.message ?: "Unknown error"}")
+                            }
+                        }
+                    }
                 ) { Text(if (ui.exporting) "Exporting…" else "Export") }
             }
         }

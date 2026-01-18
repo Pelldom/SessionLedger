@@ -20,7 +20,7 @@ import press.pelldom.sessionledger.mobile.settings.SettingsRepository
 class CsvExporter {
 
     companion object {
-        private const val TAG = "CsvExporter"
+        private const val TAG = "SL_EXPORT"
         // MediaStore Downloads relative paths are "Download/<subdir>" (typically ending with a slash when read back).
         const val EXPORT_RELATIVE_PATH: String = "Download/SessionLedger"
         const val EXPORT_MIME_TYPE: String = "text/csv"
@@ -148,24 +148,26 @@ class CsvExporter {
         val resolver = context.contentResolver
         val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
         val uri = resolver.insert(collection, values)
-        Log.d(TAG, "insert uri=$uri")
+        Log.d(TAG, "Insert into MediaStore uri=$uri")
         if (uri == null) {
-            Log.d(TAG, "insert returned null")
+            Log.d(TAG, "Insert returned null")
             throw IllegalStateException("Export failed: could not create file.")
         }
 
         try {
             val out = resolver.openOutputStream(uri, "w")
                 ?: throw IllegalStateException("Export failed: could not open output stream.")
-            Log.d(TAG, "openOutputStream ok")
+            Log.d(TAG, "Open OutputStream ok")
             out.use { stream ->
-                stream.write(csv.toByteArray(Charsets.UTF_8))
+                val bytes = csv.toByteArray(Charsets.UTF_8)
+                Log.d(TAG, "Write bytes count=${bytes.size}")
+                stream.write(bytes)
                 stream.flush()
             }
 
             val finalizeValues = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
             val updated = resolver.update(uri, finalizeValues, null, null)
-            Log.d(TAG, "finalize update count=$updated")
+            Log.d(TAG, "Finalize IS_PENDING=0 updateCount=$updated")
             if (updated <= 0) {
                 throw IllegalStateException("Export failed: could not finalize file.")
             }
