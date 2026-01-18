@@ -14,9 +14,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
@@ -34,6 +37,7 @@ import press.pelldom.sessionledger.mobile.ui.navigation.MobileRoutes
 import press.pelldom.sessionledger.mobile.ui.detail.SessionDetailScreen
 import press.pelldom.sessionledger.mobile.ui.sessions.SessionListScreen
 import press.pelldom.sessionledger.mobile.ui.settings.SettingsScreen
+import press.pelldom.sessionledger.mobile.wear.WearCategoriesPublisher
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,6 +52,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun MobileApp() {
+    val context = LocalContext.current
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -76,13 +81,18 @@ private fun MobileApp() {
         ?.hierarchy
         ?.any { it.route in setOf(MobileRoutes.ACTIVE, MobileRoutes.SESSIONS, MobileRoutes.CATEGORIES) } == true
 
+    LaunchedEffect(Unit) {
+        // Start publishing categories to watch at app start.
+        WearCategoriesPublisher.start(context)
+    }
+
     Scaffold(
         bottomBar = {
             if (!showBottomBar) return@Scaffold
 
             Column {
                 Text(
-                    text = "SessionLedger v0.0.3",
+                    text = "SessionLedger v0.0.4",
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 6.dp, bottom = 4.dp),

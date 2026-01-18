@@ -10,6 +10,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import press.pelldom.sessionledger.mobile.billing.SessionState
 import press.pelldom.sessionledger.mobile.data.db.DefaultCategory
+import press.pelldom.sessionledger.mobile.data.db.dao.CategoryDao
 import press.pelldom.sessionledger.mobile.data.db.dao.SessionDao
 import press.pelldom.sessionledger.mobile.data.db.entities.SessionEntity
 import press.pelldom.sessionledger.mobile.wear.WearSessionStatePublisher
@@ -23,16 +24,22 @@ import press.pelldom.sessionledger.mobile.wear.WearSessionStatePublisher
  */
 class SessionRepository(
     private val sessionDao: SessionDao,
+    private val categoryDao: CategoryDao,
     private val appContext: Context
 ) {
     private val scope = CoroutineScope(Dispatchers.IO)
     private var runningPublishJob: Job? = null
 
-    suspend fun startSession() {
+    suspend fun startSession(categoryId: String? = null, createdOnDevice: String = "phone") {
         val existing = sessionDao.getActiveSession()
         if (existing != null) return
 
         val nowMs = System.currentTimeMillis()
+        val resolvedCategoryId = when {
+            categoryId.isNullOrBlank() -> DefaultCategory.UNCATEGORIZED_ID
+            categoryDao.getById(categoryId) != null -> categoryId
+            else -> DefaultCategory.UNCATEGORIZED_ID
+        }
         val session = SessionEntity(
             id = UUID.randomUUID().toString(),
             startTimeMs = nowMs,
@@ -40,14 +47,14 @@ class SessionRepository(
             state = SessionState.RUNNING,
             pausedTotalMs = 0L,
             lastStateChangeTimeMs = nowMs,
-            categoryId = DefaultCategory.UNCATEGORIZED_ID,
+            categoryId = resolvedCategoryId,
             notes = null,
             hourlyRateOverride = null,
             roundingModeOverride = null,
             roundingDirectionOverride = null,
             minBillableSecondsOverride = null,
             minChargeAmountOverride = null,
-            createdOnDevice = "phone",
+            createdOnDevice = createdOnDevice,
             updatedAtMs = nowMs
         )
         sessionDao.insert(session)

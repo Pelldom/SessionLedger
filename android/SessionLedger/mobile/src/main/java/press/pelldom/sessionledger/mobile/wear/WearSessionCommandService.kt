@@ -19,8 +19,10 @@ class SessionLedgerWearService : WearableListenerService() {
     private val tag = "SessionLedgerWear"
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
+        val db = AppDatabase.getInstance(this)
         val repo = SessionRepository(
-            sessionDao = AppDatabase.getInstance(this).sessionDao(),
+            sessionDao = db.sessionDao(),
+            categoryDao = db.categoryDao(),
             appContext = applicationContext
         )
 
@@ -28,7 +30,12 @@ class SessionLedgerWearService : WearableListenerService() {
 
         scope.launch {
             when (messageEvent.path) {
-                WearSessionPaths.START -> repo.startSession()
+                WearSessionPaths.START -> {
+                    val categoryId = messageEvent.data
+                        ?.takeIf { it.isNotEmpty() }
+                        ?.toString(Charsets.UTF_8)
+                    repo.startSession(categoryId = categoryId, createdOnDevice = "watch")
+                }
                 WearSessionPaths.PAUSE -> repo.pauseSession()
                 WearSessionPaths.RESUME -> repo.resumeSession()
                 WearSessionPaths.END -> repo.endSession()

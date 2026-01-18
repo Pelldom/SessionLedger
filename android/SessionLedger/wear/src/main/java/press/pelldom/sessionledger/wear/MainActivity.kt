@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -54,18 +55,23 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        val state = viewModel.uiState.value.state
+        val ui = viewModel.uiState.value
+        val state = ui.state
 
         return when (keyCode) {
             KeyEvent.KEYCODE_STEM_1 -> {
                 when (state) {
-                    WatchSessionState.NONE -> viewModel.start()
+                    WatchSessionState.NONE -> viewModel.onStartPressed()
                     WatchSessionState.RUNNING, WatchSessionState.PAUSED -> viewModel.end()
                 }
                 true
             }
 
             KeyEvent.KEYCODE_STEM_2 -> {
+                if (ui.showCategoryPicker) {
+                    viewModel.dismissCategoryPicker()
+                    return true
+                }
                 when (state) {
                     WatchSessionState.RUNNING -> viewModel.pause()
                     WatchSessionState.PAUSED -> viewModel.resume()
@@ -115,7 +121,7 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
     }
 
     val (primaryLabel, onPrimary) = when (uiState.state) {
-        WatchSessionState.NONE -> "Start" to { viewModel.start() }
+        WatchSessionState.NONE -> "Start" to { viewModel.onStartPressed() }
         WatchSessionState.RUNNING, WatchSessionState.PAUSED -> "End" to { viewModel.end() }
     }
 
@@ -149,14 +155,35 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
             )
 
             // CENTER
-            Text(
-                text = formatElapsed(elapsedMs),
-                color = Color.White,
-                style = MaterialTheme.typography.display1,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .alpha(elapsedAlpha)
-            )
+            if (uiState.showCategoryPicker) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.55f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Pick category",
+                        color = Color.White,
+                        style = MaterialTheme.typography.caption1
+                    )
+                    for (cat in uiState.categories) {
+                        Button(onClick = { viewModel.startWithCategory(cat.id) }) {
+                            Text(cat.name)
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    text = formatElapsed(elapsedMs),
+                    color = Color.White,
+                    style = MaterialTheme.typography.display1,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .alpha(elapsedAlpha)
+                )
+            }
 
             // BOTTOM
             Row(
@@ -166,10 +193,14 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(onClick = onPrimary) { Text(primaryLabel) }
+                if (uiState.showCategoryPicker) {
+                    Button(onClick = { viewModel.dismissCategoryPicker() }) { Text("Cancel") }
+                } else {
+                    Button(onClick = onPrimary) { Text(primaryLabel) }
 
-                if (secondaryLabel != null && onSecondary != null) {
-                    Button(onClick = onSecondary) { Text(secondaryLabel) }
+                    if (secondaryLabel != null && onSecondary != null) {
+                        Button(onClick = onSecondary) { Text(secondaryLabel) }
+                    }
                 }
             }
         }

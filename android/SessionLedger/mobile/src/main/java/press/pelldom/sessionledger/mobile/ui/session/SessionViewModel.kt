@@ -21,7 +21,11 @@ class SessionViewModel(
 ) : ViewModel() {
 
     private val scope = CoroutineScope(SupervisorJob() + ioDispatcher)
-    private val repo = SessionRepository(sessionDao = sessionDao, appContext = appContext)
+    private val repo = SessionRepository(
+        sessionDao = sessionDao,
+        categoryDao = press.pelldom.sessionledger.mobile.data.db.AppDatabase.getInstance(appContext).categoryDao(),
+        appContext = appContext
+    )
 
     private val _activeSession = MutableStateFlow<SessionEntity?>(null)
     val activeSession: StateFlow<SessionEntity?> = _activeSession
@@ -37,7 +41,7 @@ class SessionViewModel(
     }
 
     fun startSession() {
-        scope.launch { repo.startSession() }
+        scope.launch { repo.startSession(createdOnDevice = "phone") }
     }
 
     fun pauseSession() {
