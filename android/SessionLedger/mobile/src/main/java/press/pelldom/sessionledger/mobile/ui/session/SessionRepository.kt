@@ -111,6 +111,12 @@ class SessionRepository(
         stopRunningPublisher()
     }
 
+    suspend fun setActiveSessionCategory(categoryId: String) {
+        val s = sessionDao.getActiveSession() ?: return
+        val nowMs = System.currentTimeMillis()
+        sessionDao.update(s.copy(categoryId = categoryId, updatedAtMs = nowMs))
+    }
+
     private fun startRunningPublisher(session: SessionEntity) {
         stopRunningPublisher()
         if (session.state != SessionState.RUNNING) return

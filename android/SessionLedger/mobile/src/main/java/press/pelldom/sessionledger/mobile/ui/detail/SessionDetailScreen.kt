@@ -34,6 +34,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.LocalDate
 import java.time.ZoneOffset
+import press.pelldom.sessionledger.mobile.ui.categories.CategoryPickerDialog
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,11 +82,7 @@ fun SessionDetailScreen(sessionId: String, onDone: () -> Unit) {
             return@Column
         }
 
-        ReadonlyPickerField(
-            label = "Category",
-            value = ui.categoryName,
-            onClick = { showCategoryPicker = true }
-        )
+        ReadonlyPickerField(label = "Category", value = ui.categoryName, onClick = { showCategoryPicker = true })
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             ReadonlyPickerField(
@@ -235,30 +232,19 @@ fun SessionDetailScreen(sessionId: String, onDone: () -> Unit) {
     }
 
     if (showCategoryPicker) {
-        AlertDialog(
-            onDismissRequest = { showCategoryPicker = false },
-            confirmButton = {},
-            dismissButton = {
-                OutlinedButton(onClick = { showCategoryPicker = false }) { Text("Close") }
+        CategoryPickerDialog(
+            title = "Pick category",
+            categories = ui.categories,
+            selectedCategoryId = ui.categoryId,
+            onSelectCategory = { id ->
+                viewModel.setCategoryId(id)
+                showCategoryPicker = false
             },
-            title = { Text("Pick category") },
-            text = {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(ui.categories, key = { it.id }) { cat ->
-                        val label = if (cat.isDefault) "${cat.name} (default)" else cat.name
-                        Text(
-                            text = label,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.setCategoryId(cat.id)
-                                    showCategoryPicker = false
-                                }
-                                .padding(vertical = 8.dp)
-                        )
-                    }
-                }
-            }
+            onAddNewCategory = { name ->
+                viewModel.createCategoryAndSelect(name)
+                showCategoryPicker = false
+            },
+            onDismiss = { showCategoryPicker = false }
         )
     }
 }

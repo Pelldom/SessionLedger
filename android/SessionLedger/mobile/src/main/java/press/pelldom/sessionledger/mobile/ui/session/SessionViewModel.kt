@@ -52,6 +52,10 @@ class SessionViewModel(
         scope.launch { repo.endSession() }
     }
 
+    fun setActiveSessionCategory(categoryId: String) {
+        scope.launch { repo.setActiveSessionCategory(categoryId) }
+    }
+
     override fun onCleared() {
         super.onCleared()
         scope.coroutineContext.cancel()

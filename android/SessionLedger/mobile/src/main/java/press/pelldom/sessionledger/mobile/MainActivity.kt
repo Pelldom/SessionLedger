@@ -3,6 +3,8 @@ package press.pelldom.sessionledger.mobile
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -14,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
@@ -24,6 +27,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.NavType
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import press.pelldom.sessionledger.mobile.ui.active.ActiveSessionScreen
 import press.pelldom.sessionledger.mobile.ui.categories.CategoryManagementScreen
 import press.pelldom.sessionledger.mobile.ui.navigation.MobileRoutes
@@ -59,27 +63,50 @@ private fun MobileApp() {
                 route = MobileRoutes.SESSIONS,
                 label = "Sessions",
                 icon = Icons.AutoMirrored.Filled.List
+            ),
+            BottomNavItem(
+                route = MobileRoutes.CATEGORIES,
+                label = "Categories",
+                icon = Icons.AutoMirrored.Filled.List
             )
         )
     }
 
+    val showBottomBar = currentDestination
+        ?.hierarchy
+        ?.any { it.route in setOf(MobileRoutes.ACTIVE, MobileRoutes.SESSIONS, MobileRoutes.CATEGORIES) } == true
+
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                bottomItems.forEach { item ->
-                    val selected = currentDestination?.hierarchy?.any { it.route == item.route } == true
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = {
-                            navController.navigate(item.route) {
-                                launchSingleTop = true
-                                restoreState = true
-                                popUpTo(MobileRoutes.ACTIVE) { saveState = true }
-                            }
-                        },
-                        icon = { Icon(item.icon, contentDescription = item.label) },
-                        label = { Text(item.label) }
-                    )
+            if (!showBottomBar) return@Scaffold
+
+            Column {
+                Text(
+                    text = "SessionLedger v0.0.3",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 6.dp, bottom = 4.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                NavigationBar {
+                    bottomItems.forEach { item ->
+                        val selected = currentDestination?.hierarchy?.any { it.route == item.route } == true
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = {
+                                navController.navigate(item.route) {
+                                    launchSingleTop = true
+                                    restoreState = true
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                }
+                            },
+                            icon = { Icon(item.icon, contentDescription = item.label) },
+                            label = { Text(item.label) }
+                        )
+                    }
                 }
             }
         }
@@ -95,10 +122,8 @@ private fun MobileApp() {
                     navController.navigate(MobileRoutes.sessionDetailRoute(id))
                 })
             }
-            composable(MobileRoutes.SETTINGS) {
-                SettingsScreen(onCategoriesClick = { navController.navigate(MobileRoutes.CATEGORIES) })
-            }
             composable(MobileRoutes.CATEGORIES) { CategoryManagementScreen() }
+            composable(MobileRoutes.SETTINGS) { SettingsScreen() }
 
             composable(
                 route = MobileRoutes.SESSION_DETAIL_ROUTE,

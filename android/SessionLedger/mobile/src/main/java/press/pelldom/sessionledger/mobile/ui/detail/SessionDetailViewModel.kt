@@ -6,10 +6,12 @@ import androidx.lifecycle.viewModelScope
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Date
+import java.util.UUID
 import kotlin.math.max
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import press.pelldom.sessionledger.mobile.billing.SessionState
@@ -90,6 +92,22 @@ class SessionDetailViewModel(
                 categoryName = categoryName,
                 categories = categories
             )
+
+            // Keep categories up to date (e.g. after add/rename/delete elsewhere).
+            viewModelScope.launch(Dispatchers.IO) {
+                db.categoryDao()
+                    .observeAllCategories()
+                    .distinctUntilChanged()
+                    .collect { updatedCats ->
+                        val name = updatedCats.firstOrNull { it.id == categoryId }?.name
+                            ?: updatedCats.firstOrNull { it.id == DefaultCategory.UNCATEGORIZED_ID }?.name
+                            ?: DefaultCategory.UNCATEGORIZED_NAME
+                        _uiState.value = _uiState.value.copy(
+                            categories = updatedCats,
+                            categoryName = name
+                        )
+                    }
+            }
         }
     }
 
@@ -113,6 +131,34 @@ class SessionDetailViewModel(
     fun setCategoryId(id: String) {
         categoryId = id
         recompute()
+    }
+
+    fun createCategoryAndSelect(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        val current = _uiState.value.categories
+        if (current.any { it.name.equals(trimmed, ignoreCase = true) }) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            val entity = CategoryEntity(
+                id = UUID.randomUUID().toString(),
+                name = trimmed,
+                isDefault = false,
+                archived = false,
+                createdAtMs = now,
+                updatedAtMs = now
+            )
+            db.categoryDao().insert(entity)
+
+            val updatedList = (current + entity).sortedBy { it.name.lowercase() }
+            categoryId = entity.id
+
+            _uiState.value = _uiState.value.copy(
+                categories = updatedList
+            )
+            recompute()
+        }
     }
 
     fun save(onSuccess: () -> Unit) {

@@ -1,5 +1,6 @@
 package press.pelldom.sessionledger.mobile.ui.active
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,6 +13,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -22,23 +24,42 @@ import java.text.DateFormat
 import java.util.Date
 import kotlin.math.max
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import press.pelldom.sessionledger.mobile.billing.SessionState
 import press.pelldom.sessionledger.mobile.data.db.AppDatabase
+import press.pelldom.sessionledger.mobile.data.db.DefaultCategory
+import press.pelldom.sessionledger.mobile.data.db.entities.CategoryEntity
 import press.pelldom.sessionledger.mobile.data.db.entities.SessionEntity
+import press.pelldom.sessionledger.mobile.ui.categories.CategoryPickerDialog
 import press.pelldom.sessionledger.mobile.ui.session.SessionViewModel
 
 @Composable
 fun ActiveSessionScreen() {
     val context = LocalContext.current
+    val db = remember { AppDatabase.getInstance(context) }
     val viewModel = remember {
         SessionViewModel(
-            sessionDao = AppDatabase.getInstance(context).sessionDao(),
+            sessionDao = db.sessionDao(),
             appContext = context.applicationContext
         )
     }
 
     val activeSession by viewModel.activeSession.collectAsState()
     val session = activeSession
+
+    val categories by db.categoryDao().observeAllCategories().collectAsState(initial = emptyList())
+    val categoryById = remember(categories) { categories.associateBy { it.id } }
+    val currentCategoryName = session?.let {
+        categoryById[it.categoryId]?.name
+            ?: categoryById[DefaultCategory.UNCATEGORIZED_ID]?.name
+            ?: DefaultCategory.UNCATEGORIZED_NAME
+    } ?: DefaultCategory.UNCATEGORIZED_NAME
+
+    var showPicker by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     var nowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(session?.id, session?.state) {
@@ -77,6 +98,11 @@ fun ActiveSessionScreen() {
             Text(text = "SessionLedger", style = MaterialTheme.typography.headlineLarge)
             Text(text = statusText, style = MaterialTheme.typography.bodyLarge)
             Text(text = formatElapsed(elapsedMs), style = MaterialTheme.typography.headlineMedium)
+            Text(
+                text = "Category: $currentCategoryName",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.clickable(enabled = session != null) { showPicker = true }
+            )
             if (session != null && (session.state == SessionState.RUNNING || session.state == SessionState.PAUSED)) {
                 Text(text = startedAtText.orEmpty(), style = MaterialTheme.typography.bodyMedium)
             }
@@ -107,6 +133,38 @@ fun ActiveSessionScreen() {
                 }
             }
         }
+    }
+
+    if (showPicker && session != null) {
+        CategoryPickerDialog(
+            title = "Pick category",
+            categories = categories,
+            selectedCategoryId = session.categoryId,
+            onSelectCategory = { id ->
+                viewModel.setActiveSessionCategory(id)
+                showPicker = false
+            },
+            onAddNewCategory = { name ->
+                val now = System.currentTimeMillis()
+                val newId = java.util.UUID.randomUUID().toString()
+                val entity = CategoryEntity(
+                    id = newId,
+                    name = name,
+                    isDefault = false,
+                    archived = false,
+                    createdAtMs = now,
+                    updatedAtMs = now
+                )
+                scope.launch(Dispatchers.IO) {
+                    db.categoryDao().insert(entity)
+                    withContext(Dispatchers.Main) {
+                        viewModel.setActiveSessionCategory(newId)
+                    }
+                }
+                showPicker = false
+            },
+            onDismiss = { showPicker = false }
+        )
     }
 }
 

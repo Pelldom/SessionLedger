@@ -24,7 +24,12 @@ class CategoryListViewModel(app: Application) : AndroidViewModel(app) {
             db.categoryDao()
                 .observeAllCategories()
                 .distinctUntilChanged()
-                .collect { list -> _categories.value = list.sortedBy { it.name.lowercase() } }
+                .collect { list ->
+                    _categories.value = list.sortedWith(
+                        compareByDescending<CategoryEntity> { it.id == DefaultCategory.UNCATEGORIZED_ID }
+                            .thenBy { it.name.lowercase() }
+                    )
+                }
         }
     }
 
@@ -52,6 +57,17 @@ class CategoryListViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             val now = System.currentTimeMillis()
             db.categoryDao().update(category.copy(name = trimmed, updatedAtMs = now))
+        }
+    }
+
+    fun deleteCategory(category: CategoryEntity) {
+        if (category.id == DefaultCategory.UNCATEGORIZED_ID) return
+        viewModelScope.launch(Dispatchers.IO) {
+            db.sessionDao().reassignCategory(
+                fromCategoryId = category.id,
+                toCategoryId = DefaultCategory.UNCATEGORIZED_ID
+            )
+            db.categoryDao().deleteById(category.id)
         }
     }
 }

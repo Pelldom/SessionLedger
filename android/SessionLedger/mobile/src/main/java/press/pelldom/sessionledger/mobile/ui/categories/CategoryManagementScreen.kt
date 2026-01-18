@@ -1,6 +1,5 @@
 package press.pelldom.sessionledger.mobile.ui.categories
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,6 +35,7 @@ fun CategoryManagementScreen() {
 
     var showAdd by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<CategoryEntity?>(null) }
+    var deleteTarget by remember { mutableStateOf<CategoryEntity?>(null) }
 
     Column(
         modifier = Modifier
@@ -51,7 +52,8 @@ fun CategoryManagementScreen() {
             items(categories, key = { it.id }) { cat ->
                 CategoryRow(
                     category = cat,
-                    onRename = { if (cat.id != DefaultCategory.UNCATEGORIZED_ID) renameTarget = cat }
+                    onRename = { renameTarget = cat },
+                    onDelete = { deleteTarget = cat }
                 )
             }
         }
@@ -59,20 +61,33 @@ fun CategoryManagementScreen() {
 
     if (showAdd) {
         var name by remember { mutableStateOf("") }
+        val trimmed = name.trim()
+        val isDuplicate = categories.any { it.name.equals(trimmed, ignoreCase = true) }
+
         AlertDialog(
             onDismissRequest = { showAdd = false },
             title = { Text("Add category") },
             text = {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Name") }
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Name") }
+                    )
+                    if (isDuplicate) {
+                        Text(
+                            text = "A category with this name already exists.",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
             },
             confirmButton = {
                 Button(
+                    enabled = trimmed.isNotEmpty() && !isDuplicate,
                     onClick = {
-                        viewModel.addCategory(name)
+                        viewModel.addCategory(trimmed)
                         showAdd = false
                     }
                 ) { Text("Save") }
@@ -84,46 +99,89 @@ fun CategoryManagementScreen() {
     }
 
     renameTarget?.let { target ->
-        var name by remember { mutableStateOf(target.name) }
-        AlertDialog(
-            onDismissRequest = { renameTarget = null },
-            title = { Text("Rename category") },
-            text = {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Name") }
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.renameCategory(target, name)
-                        renameTarget = null
+        if (target.id == DefaultCategory.UNCATEGORIZED_ID) {
+            renameTarget = null
+        } else {
+            var name by remember { mutableStateOf(target.name) }
+            val trimmed = name.trim()
+            val isDuplicate = categories.any { it.id != target.id && it.name.equals(trimmed, ignoreCase = true) }
+
+            AlertDialog(
+                onDismissRequest = { renameTarget = null },
+                title = { Text("Rename category") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            label = { Text("Name") }
+                        )
+                        if (isDuplicate) {
+                            Text(
+                                text = "A category with this name already exists.",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
-                ) { Text("Save") }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = { renameTarget = null }) { Text("Cancel") }
-            }
-        )
+                },
+                confirmButton = {
+                    Button(
+                        enabled = trimmed.isNotEmpty() && !isDuplicate,
+                        onClick = {
+                            viewModel.renameCategory(target, trimmed)
+                            renameTarget = null
+                        }
+                    ) { Text("Save") }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { renameTarget = null }) { Text("Cancel") }
+                }
+            )
+        }
+    }
+
+    deleteTarget?.let { target ->
+        if (target.id == DefaultCategory.UNCATEGORIZED_ID) {
+            deleteTarget = null
+        } else {
+            AlertDialog(
+                onDismissRequest = { deleteTarget = null },
+                title = { Text("Delete category") },
+                text = { Text("Delete \"${target.name}\"? Sessions will be reassigned to Uncategorized.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.deleteCategory(target)
+                            deleteTarget = null
+                        }
+                    ) { Text("Delete") }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { deleteTarget = null }) { Text("Cancel") }
+                }
+            )
+        }
     }
 }
 
 @Composable
-private fun CategoryRow(category: CategoryEntity, onRename: () -> Unit) {
-    val suffix = when {
-        category.id == DefaultCategory.UNCATEGORIZED_ID -> " (protected)"
-        category.isDefault -> " (default)"
-        else -> ""
-    }
-    Text(
-        text = category.name + suffix,
+private fun CategoryRow(category: CategoryEntity, onRename: () -> Unit, onDelete: () -> Unit) {
+    val protected = category.id == DefaultCategory.UNCATEGORIZED_ID
+    val suffix = if (protected) " (protected)" else ""
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onRename)
-            .padding(12.dp),
-        style = MaterialTheme.typography.bodyLarge
-    )
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = category.name + suffix, style = MaterialTheme.typography.bodyLarge)
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(enabled = !protected, onClick = onRename) { Text("Rename") }
+            TextButton(enabled = !protected, onClick = onDelete) { Text("Delete") }
+        }
+    }
 }
 
