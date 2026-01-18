@@ -36,6 +36,7 @@ import press.pelldom.sessionledger.mobile.ui.categories.CategoryDetailScreen
 import press.pelldom.sessionledger.mobile.ui.categories.CategoryManagementScreen
 import press.pelldom.sessionledger.mobile.ui.navigation.MobileRoutes
 import press.pelldom.sessionledger.mobile.ui.detail.SessionDetailScreen
+import press.pelldom.sessionledger.mobile.ui.detail.SessionBillingOverrideScreen
 import press.pelldom.sessionledger.mobile.ui.sessions.SessionListScreen
 import press.pelldom.sessionledger.mobile.ui.settings.SettingsScreen
 import press.pelldom.sessionledger.mobile.wear.WearCategoriesPublisher
@@ -160,7 +161,19 @@ private fun MobileApp() {
                 val sessionId = backStackEntry.arguments?.getString("sessionId") ?: return@composable
                 SessionDetailScreen(
                     sessionId = sessionId,
-                    onDone = { navController.popBackStack(MobileRoutes.SESSIONS, false) }
+                    onDone = { navController.popBackStack(MobileRoutes.SESSIONS, false) },
+                    onOpenBillingOverrides = { navController.navigate(MobileRoutes.sessionBillingOverrideRoute(sessionId)) }
+                )
+            }
+
+            composable(
+                route = MobileRoutes.SESSION_BILLING_OVERRIDE_ROUTE,
+                arguments = listOf(navArgument("sessionId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val sessionId = backStackEntry.arguments?.getString("sessionId") ?: return@composable
+                SessionBillingOverrideScreen(
+                    sessionId = sessionId,
+                    onDone = { navController.popBackStack() }
                 )
             }
         }

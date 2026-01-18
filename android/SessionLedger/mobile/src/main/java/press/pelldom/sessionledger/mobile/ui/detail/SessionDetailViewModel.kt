@@ -133,6 +133,28 @@ class SessionDetailViewModel(
                         )
                     }
             }
+
+            // Keep session up to date (for billing overrides and other changes).
+            viewModelScope.launch(Dispatchers.IO) {
+                db.sessionDao()
+                    .observeById(sessionId)
+                    .distinctUntilChanged()
+                    .collect { updated ->
+                        val s = updated ?: return@collect
+                        loadedSession = s
+                        val cats = _uiState.value.categories
+                        val cat = cats.firstOrNull { it.id == s.categoryId }
+                            ?: cats.firstOrNull { it.id == DefaultCategory.UNCATEGORIZED_ID }
+                        val b = computeBillingSummary(s, cat, settingsRepo)
+                        _uiState.value = _uiState.value.copy(
+                            billingDurationText = b.durationText,
+                            billingHourlyRateText = b.hourlyRateText,
+                            billingRoundingText = b.roundingText,
+                            billingMinimumText = b.minimumText,
+                            billingFinalAmountText = b.finalAmountText
+                        )
+                    }
+            }
         }
     }
 

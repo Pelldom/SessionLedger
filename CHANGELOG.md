@@ -33,3 +33,7 @@ All notable changes to SessionLedger will be documented in this file.
 ## [0.1.4] - 2026-01-18
 ### Changed
 - Improved discoverability of editable Session Detail fields with subtle trailing Material affordances
+
+## [0.1.5] - 2026-01-18
+### Added
+- Session-level billing overrides (rate, rounding, minimum) with live BillingEngine recalculation
