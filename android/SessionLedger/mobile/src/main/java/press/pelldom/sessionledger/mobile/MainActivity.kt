@@ -38,6 +38,7 @@ import press.pelldom.sessionledger.mobile.ui.navigation.MobileRoutes
 import press.pelldom.sessionledger.mobile.ui.detail.SessionDetailScreen
 import press.pelldom.sessionledger.mobile.ui.detail.SessionBillingOverrideScreen
 import press.pelldom.sessionledger.mobile.ui.detail.SessionTimingEditScreen
+import press.pelldom.sessionledger.mobile.ui.export.ExportScreen
 import press.pelldom.sessionledger.mobile.ui.sessions.SessionListScreen
 import press.pelldom.sessionledger.mobile.ui.settings.SettingsScreen
 import press.pelldom.sessionledger.mobile.wear.WearCategoriesPublisher
@@ -132,9 +133,10 @@ private fun MobileApp() {
         ) {
             composable(MobileRoutes.ACTIVE) { ActiveSessionScreen() }
             composable(MobileRoutes.SESSIONS) {
-                SessionListScreen(onSessionClick = { id ->
-                    navController.navigate(MobileRoutes.sessionDetailRoute(id))
-                })
+                SessionListScreen(
+                    onSessionClick = { id -> navController.navigate(MobileRoutes.sessionDetailRoute(id)) },
+                    onExportClick = { navController.navigate(MobileRoutes.EXPORT) }
+                )
             }
             composable(MobileRoutes.CATEGORIES) {
                 CategoryManagementScreen(
@@ -143,6 +145,7 @@ private fun MobileApp() {
                 )
             }
             composable(MobileRoutes.SETTINGS) { SettingsScreen(onBack = { navController.popBackStack() }) }
+            composable(MobileRoutes.EXPORT) { ExportScreen(onDone = { navController.popBackStack() }) }
 
             composable(
                 route = MobileRoutes.CATEGORY_DETAIL_ROUTE,

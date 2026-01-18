@@ -1,9 +1,11 @@
 package press.pelldom.sessionledger.mobile.export
 
+import android.content.ContentValues
 import android.content.Context
-import android.content.Intent
-import androidx.core.content.FileProvider
-import java.io.File
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -24,8 +26,9 @@ class CsvExporter {
         startFilter: Long? = null,
         endFilter: Long? = null,
         categoryFilter: String? = null,
+        categoryFilters: Set<String>? = null,
         context: Context
-    ) {
+    ): Uri {
         val sessions = db.sessionDao()
             .observeEndedSessionsNewestFirst()
             .first()
@@ -33,7 +36,11 @@ class CsvExporter {
             .filter { s ->
                 val inStart = startFilter?.let { s.startTimeMs >= it } ?: true
                 val inEnd = endFilter?.let { s.startTimeMs < it } ?: true
-                val inCategory = categoryFilter?.let { s.categoryId == it } ?: true
+                val inCategory = when {
+                    categoryFilters != null -> categoryFilters.contains(s.categoryId)
+                    categoryFilter != null -> s.categoryId == categoryFilter
+                    else -> true
+                }
                 inStart && inEnd && inCategory
             }
             .toList()
@@ -74,7 +81,7 @@ class CsvExporter {
             appendLine(header)
 
             for (session in sessions) {
-                val category = session.categoryId?.let { db.categoryDao().getById(it) }
+                val category = db.categoryDao().getById(session.categoryId)
                 val settings = settingsRepo.observeGlobalSettings().first()
                 val billing = BillingEngine.calculateForEndedSession(session, category, settings)
 
@@ -120,22 +127,37 @@ class CsvExporter {
         }
 
         val nowLocal = LocalDateTime.now(zoneId)
-        val fileName = "sessionledger_export_${nowLocal.format(fileStampFormatter)}.csv"
-        val outFile = File(context.cacheDir, fileName)
-        outFile.writeText(csv, Charsets.UTF_8)
+        val fileName = "SessionLedger_Export_${nowLocal.format(fileStampFormatter)}.csv"
+        val relativePath = Environment.DIRECTORY_DOWNLOADS + "/SessionLedger/"
 
-        // Requires a FileProvider declared with authority "${applicationId}.fileprovider"
-        // and a matching cache-path in its file_paths XML.
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", outFile)
-
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/csv"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // Scoped storage friendly: write into Downloads/SessionLedger via MediaStore.
+        // This produces a user-visible file without requesting broad storage permissions on modern Android.
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+            put(MediaStore.MediaColumns.MIME_TYPE, "text/csv")
+            if (Build.VERSION.SDK_INT >= 29) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
         }
 
-        context.startActivity(Intent.createChooser(intent, "Export SessionLedger CSV"))
+        val resolver = context.contentResolver
+        val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+        val uri = resolver.insert(collection, values)
+            ?: throw IllegalStateException("Unable to create export file in Downloads.")
+
+        try {
+            resolver.openOutputStream(uri, "w")?.use { out ->
+                out.write(csv.toByteArray(Charsets.UTF_8))
+            } ?: throw IllegalStateException("Unable to open export file for writing.")
+        } finally {
+            if (Build.VERSION.SDK_INT >= 29) {
+                val finalizeValues = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+                resolver.update(uri, finalizeValues, null, null)
+            }
+        }
+
+        return uri
     }
 
     private fun formatLocal(

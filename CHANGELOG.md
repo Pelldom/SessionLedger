@@ -55,3 +55,8 @@ All notable changes to SessionLedger will be documented in this file.
 ### Changed
 - Simplified Session Detail editing UX with three entry points (Timing, Category, Billing)
 - Consolidated timing edits into a dedicated timing edit screen; Billing Summary is now fully read-only on Session Details
+
+## [0.2.0] - 2026-01-18
+### Added
+- CSV export UI for sessions (date range + category filter)
+- Exports are saved to Downloads/SessionLedger and can be shared optionally

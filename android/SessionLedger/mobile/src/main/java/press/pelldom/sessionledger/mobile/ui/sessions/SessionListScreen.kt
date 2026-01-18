@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,7 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun SessionListScreen(onSessionClick: (String) -> Unit) {
+fun SessionListScreen(onSessionClick: (String) -> Unit, onExportClick: () -> Unit) {
     val context = LocalContext.current
     val viewModel = remember {
         SessionListViewModel(context.applicationContext as android.app.Application)
@@ -29,6 +30,14 @@ fun SessionListScreen(onSessionClick: (String) -> Unit) {
         modifier = Modifier.padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        item(key = "export") {
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onExportClick
+            ) {
+                Text("Export")
+            }
+        }
         items(items, key = { it.id }) { item ->
             SessionRow(item = item, onClick = { onSessionClick(item.id) })
         }
