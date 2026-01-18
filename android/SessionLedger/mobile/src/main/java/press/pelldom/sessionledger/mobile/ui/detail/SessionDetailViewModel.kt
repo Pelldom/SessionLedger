@@ -141,11 +141,30 @@ class SessionDetailViewModel(
                     .collect { updated ->
                         val s = updated ?: return@collect
                         loadedSession = s
+
+                        // Keep the displayed timing/category in sync with persisted session edits.
+                        baselineStartMs = s.startTimeMs
+                        baselineEndMs = s.endTimeMs
+                        startMs = baselineStartMs
+                        endMs = baselineEndMs
+                        categoryId = s.categoryId
+
                         val cats = _uiState.value.categories
                         val cat = cats.firstOrNull { it.id == s.categoryId }
                             ?: cats.firstOrNull { it.id == DefaultCategory.UNCATEGORIZED_ID }
                         val b = computeBillingSummary(s, cat, settingsRepo)
+                        val resolvedCategoryName = cats.firstOrNull { it.id == s.categoryId }?.name
+                            ?: cats.firstOrNull { it.id == DefaultCategory.UNCATEGORIZED_ID }?.name
+                            ?: DefaultCategory.UNCATEGORIZED_NAME
+
                         _uiState.value = _uiState.value.copy(
+                            startText = formatLocal(s.startTimeMs),
+                            endText = formatLocal(s.endTimeMs ?: s.startTimeMs),
+                            startMillis = s.startTimeMs,
+                            endMillis = s.endTimeMs,
+                            durationText = formatDuration(derivedDurationMs(s, s.startTimeMs, s.endTimeMs)),
+                            categoryId = s.categoryId,
+                            categoryName = resolvedCategoryName,
                             billingDurationText = b.durationText,
                             billingHourlyRateText = b.hourlyRateText,
                             billingRoundingText = b.roundingText,
@@ -178,6 +197,19 @@ class SessionDetailViewModel(
         recompute()
     }
 
+    fun persistCategorySelection(id: String) {
+        val session = loadedSession ?: return
+        if (session.state != SessionState.ENDED || session.endTimeMs == null) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val nowMs = System.currentTimeMillis()
+            val updated = session.copy(categoryId = id, updatedAtMs = nowMs)
+            db.sessionDao().update(updated)
+            loadedSession = updated
+            categoryId = id
+        }
+    }
+
     fun createCategoryAndSelect(name: String) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
@@ -203,6 +235,7 @@ class SessionDetailViewModel(
                 categories = updatedList
             )
             recompute()
+            persistCategorySelection(entity.id)
         }
     }
 

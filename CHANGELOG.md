@@ -50,3 +50,8 @@ All notable changes to SessionLedger will be documented in this file.
 ### Changed
 - Unified navigation behavior across edit screens (Back arrow prompts to Save/Discard/Cancel when changes are unsaved)
 - Standardized Save/Cancel semantics so they do not navigate (navigation occurs via Back only)
+
+## [0.1.9] - 2026-01-18
+### Changed
+- Simplified Session Detail editing UX with three entry points (Timing, Category, Billing)
+- Consolidated timing edits into a dedicated timing edit screen; Billing Summary is now fully read-only on Session Details
