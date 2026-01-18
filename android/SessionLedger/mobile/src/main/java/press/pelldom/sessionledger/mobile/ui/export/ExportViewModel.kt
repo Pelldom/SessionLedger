@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import java.time.Instant
@@ -52,6 +53,9 @@ data class ExportUiState(
 )
 
 class ExportViewModel(app: Application) : AndroidViewModel(app) {
+    companion object {
+        private const val TAG = "ExportViewModel"
+    }
     private val db = AppDatabase.getInstance(app)
     private val settingsRepo = SettingsRepository(app.dataStore)
     private val zone = ZoneId.systemDefault()
@@ -172,7 +176,9 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
                 )
                 refreshHistory()
             } catch (t: Throwable) {
-                _ui.value = _ui.value.copy(statusMessage = "Export failed: ${t.message ?: "Unknown error"}")
+                val msg = t.message ?: "Unknown error"
+                val messageToShow = if (msg.startsWith("Export failed:")) msg else "Export failed: $msg"
+                _ui.value = _ui.value.copy(statusMessage = messageToShow)
             } finally {
                 withContext(Dispatchers.Main) {
                     _ui.value = _ui.value.copy(exporting = false)
@@ -226,10 +232,10 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
             MediaStore.MediaColumns.DATE_ADDED
         )
 
-        val selection = "${MediaStore.MediaColumns.MIME_TYPE} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
+        val selection = "${MediaStore.MediaColumns.MIME_TYPE} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
         val selectionArgs = arrayOf(
             CsvExporter.EXPORT_MIME_TYPE,
-            "${CsvExporter.EXPORT_RELATIVE_PATH}%"
+            CsvExporter.EXPORT_RELATIVE_PATH
         )
 
         val sortOrder = "${MediaStore.MediaColumns.DATE_ADDED} DESC"
@@ -260,6 +266,7 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
 
+        Log.d(TAG, "history count=${items.size}")
         _ui.value = _ui.value.copy(history = items)
     }
 

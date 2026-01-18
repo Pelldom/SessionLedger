@@ -3,8 +3,8 @@ package press.pelldom.sessionledger.mobile.export
 import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
-import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -20,6 +20,7 @@ import press.pelldom.sessionledger.mobile.settings.SettingsRepository
 class CsvExporter {
 
     companion object {
+        private const val TAG = "CsvExporter"
         // MediaStore Downloads relative paths are "Download/<subdir>" (typically ending with a slash when read back).
         const val EXPORT_RELATIVE_PATH: String = "Download/SessionLedger"
         const val EXPORT_MIME_TYPE: String = "text/csv"
@@ -140,37 +141,40 @@ class CsvExporter {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
             put(MediaStore.MediaColumns.MIME_TYPE, EXPORT_MIME_TYPE)
-            if (Build.VERSION.SDK_INT >= 29) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
-            }
+            put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
 
         val resolver = context.contentResolver
         val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
         val uri = resolver.insert(collection, values)
-            ?: throw IllegalStateException("Unable to create export file in Downloads.")
+        Log.d(TAG, "insert uri=$uri")
+        if (uri == null) {
+            Log.d(TAG, "insert returned null")
+            throw IllegalStateException("Export failed: could not create file.")
+        }
 
-        var wroteSuccessfully = false
         try {
-            resolver.openOutputStream(uri, "w")?.use { out ->
-                out.write(csv.toByteArray(Charsets.UTF_8))
-                out.flush()
-            } ?: throw IllegalStateException("Unable to open export file for writing.")
+            val out = resolver.openOutputStream(uri, "w")
+                ?: throw IllegalStateException("Export failed: could not open output stream.")
+            Log.d(TAG, "openOutputStream ok")
+            out.use { stream ->
+                stream.write(csv.toByteArray(Charsets.UTF_8))
+                stream.flush()
+            }
 
-            wroteSuccessfully = true
-            if (Build.VERSION.SDK_INT >= 29) {
-                val finalizeValues = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
-                resolver.update(uri, finalizeValues, null, null)
+            val finalizeValues = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+            val updated = resolver.update(uri, finalizeValues, null, null)
+            Log.d(TAG, "finalize update count=$updated")
+            if (updated <= 0) {
+                throw IllegalStateException("Export failed: could not finalize file.")
             }
         } catch (t: Throwable) {
             // Best effort cleanup so we don't leave a pending/partial row behind.
-            if (!wroteSuccessfully) {
-                try {
-                    resolver.delete(uri, null, null)
-                } catch (_: Throwable) {
-                    // ignore cleanup failure
-                }
+            try {
+                resolver.delete(uri, null, null)
+            } catch (_: Throwable) {
+                // ignore cleanup failure
             }
             throw t
         }
