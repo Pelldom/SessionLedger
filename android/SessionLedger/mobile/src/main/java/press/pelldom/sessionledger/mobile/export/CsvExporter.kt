@@ -151,15 +151,28 @@ class CsvExporter {
         val uri = resolver.insert(collection, values)
             ?: throw IllegalStateException("Unable to create export file in Downloads.")
 
+        var wroteSuccessfully = false
         try {
             resolver.openOutputStream(uri, "w")?.use { out ->
                 out.write(csv.toByteArray(Charsets.UTF_8))
+                out.flush()
             } ?: throw IllegalStateException("Unable to open export file for writing.")
-        } finally {
+
+            wroteSuccessfully = true
             if (Build.VERSION.SDK_INT >= 29) {
                 val finalizeValues = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
                 resolver.update(uri, finalizeValues, null, null)
             }
+        } catch (t: Throwable) {
+            // Best effort cleanup so we don't leave a pending/partial row behind.
+            if (!wroteSuccessfully) {
+                try {
+                    resolver.delete(uri, null, null)
+                } catch (_: Throwable) {
+                    // ignore cleanup failure
+                }
+            }
+            throw t
         }
 
         return uri
