@@ -38,6 +38,7 @@ import press.pelldom.sessionledger.mobile.ui.detail.SessionDetailScreen
 import press.pelldom.sessionledger.mobile.ui.sessions.SessionListScreen
 import press.pelldom.sessionledger.mobile.ui.settings.SettingsScreen
 import press.pelldom.sessionledger.mobile.wear.WearCategoriesPublisher
+import press.pelldom.sessionledger.mobile.ui.AppVersion
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,7 +93,7 @@ private fun MobileApp() {
 
             Column {
                 Text(
-                    text = "SessionLedger v0.0.4",
+                    text = AppVersion.FOOTER_TEXT,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 6.dp, bottom = 4.dp),
@@ -132,8 +133,10 @@ private fun MobileApp() {
                     navController.navigate(MobileRoutes.sessionDetailRoute(id))
                 })
             }
-            composable(MobileRoutes.CATEGORIES) { CategoryManagementScreen() }
-            composable(MobileRoutes.SETTINGS) { SettingsScreen() }
+            composable(MobileRoutes.CATEGORIES) {
+                CategoryManagementScreen(onOpenSettings = { navController.navigate(MobileRoutes.SETTINGS) })
+            }
+            composable(MobileRoutes.SETTINGS) { SettingsScreen(onBack = { navController.popBackStack() }) }
 
             composable(
                 route = MobileRoutes.SESSION_DETAIL_ROUTE,

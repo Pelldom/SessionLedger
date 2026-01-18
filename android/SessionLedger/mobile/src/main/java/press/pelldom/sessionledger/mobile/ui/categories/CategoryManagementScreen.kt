@@ -24,11 +24,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import java.util.Locale
 import press.pelldom.sessionledger.mobile.data.db.DefaultCategory
 import press.pelldom.sessionledger.mobile.data.db.entities.CategoryEntity
+import press.pelldom.sessionledger.mobile.billing.RoundingMode
 
 @Composable
-fun CategoryManagementScreen() {
+fun CategoryManagementScreen(onOpenSettings: () -> Unit) {
     val context = LocalContext.current
     val viewModel = remember { CategoryListViewModel(context.applicationContext as android.app.Application) }
     val categories by viewModel.categories.collectAsState()
@@ -46,6 +48,13 @@ fun CategoryManagementScreen() {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(text = "Categories", style = MaterialTheme.typography.headlineSmall)
             Button(onClick = { showAdd = true }) { Text("Add") }
+        }
+
+        OutlinedButton(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onOpenSettings
+        ) {
+            Text("Global Billing Defaults")
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -176,12 +185,4 @@ private fun CategoryRow(category: CategoryEntity, onRename: () -> Unit, onDelete
             .padding(horizontal = 12.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = category.name + suffix, style = MaterialTheme.typography.bodyLarge)
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(enabled = !protected, onClick = onRename) { Text("Rename") }
-            TextButton(enabled = !protected, onClick = onDelete) { Text("Delete") }
-        }
-    }
-}
-
+        Column(modifier = Modifier.weight(1f), verticalArrangement =

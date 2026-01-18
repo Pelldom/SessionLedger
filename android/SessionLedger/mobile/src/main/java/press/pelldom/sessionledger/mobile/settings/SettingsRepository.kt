@@ -59,5 +59,31 @@ class SettingsRepository(
     suspend fun setDefaultCurrencyCad() {
         dataStore.edit { prefs -> prefs[SettingsKeys.DEFAULT_CURRENCY] = "CAD" }
     }
+
+    suspend fun setDefaultHourlyRate(ratePerHour: Double) {
+        dataStore.edit { prefs -> prefs[SettingsKeys.DEFAULT_HOURLY_RATE] = ratePerHour }
+    }
+
+    suspend fun setDefaultRoundingMode(mode: RoundingMode) {
+        dataStore.edit { prefs -> prefs[SettingsKeys.DEFAULT_ROUNDING_MODE] = mode.name }
+    }
+
+    suspend fun setDefaultRoundingDirection(direction: RoundingDirection) {
+        dataStore.edit { prefs -> prefs[SettingsKeys.DEFAULT_ROUNDING_DIRECTION] = direction.name }
+    }
+
+    suspend fun setMinBillableSeconds(value: Long?) {
+        dataStore.edit { prefs ->
+            if (value == null) prefs.remove(SettingsKeys.MIN_BILLABLE_SECONDS)
+            else prefs[SettingsKeys.MIN_BILLABLE_SECONDS] = value
+        }
+    }
+
+    suspend fun setMinChargeAmount(value: Double?) {
+        dataStore.edit { prefs ->
+            if (value == null) prefs.remove(SettingsKeys.MIN_CHARGE_AMOUNT)
+            else prefs[SettingsKeys.MIN_CHARGE_AMOUNT] = value
+        }
+    }
 }
 
