@@ -185,4 +185,47 @@ private fun CategoryRow(category: CategoryEntity, onRename: () -> Unit, onDelete
             .padding(horizontal = 12.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement =
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(text = category.name + suffix, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = billingSummaryLine1(category),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = billingSummaryLine2(category),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(enabled = !protected, onClick = onRename) { Text("Rename") }
+            TextButton(enabled = !protected, onClick = onDelete) { Text("Delete") }
+        }
+    }
+}
+
+private fun billingSummaryLine1(category: CategoryEntity): String {
+    val rate = category.defaultHourlyRate?.let { "CAD ${String.format(Locale.CANADA, "%.2f", it)}/hr" } ?: "Inherits global"
+
+    val rounding = if (category.roundingMode == null) {
+        "Inherits global"
+    } else {
+        when (category.roundingMode) {
+            RoundingMode.EXACT -> "EXACT"
+            RoundingMode.SIX_MINUTE -> {
+                val dir = category.roundingDirection?.name ?: "Inherits global"
+                "SIX_MINUTE ($dir)"
+            }
+        }
+    }
+
+    return "Rate: $rate • Rounding: $rounding"
+}
+
+private fun billingSummaryLine2(category: CategoryEntity): String {
+    val minTime = category.minBillableSeconds?.let { "${it / 60L} min" } ?: "Inherits global"
+    val minAmt = category.minChargeAmount?.let { "CAD ${String.format(Locale.CANADA, "%.2f", it)}" } ?: "Inherits global"
+    return "Minimums: time $minTime • amount $minAmt"
+}
