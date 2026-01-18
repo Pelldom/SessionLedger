@@ -47,7 +47,7 @@ private fun SessionRow(item: SessionListItemUiModel, onClick: () -> Unit) {
         Text(text = item.dateText, style = MaterialTheme.typography.titleMedium)
         Text(text = "Duration: ${item.durationText}", style = MaterialTheme.typography.bodyMedium)
         Text(text = item.categoryText, style = MaterialTheme.typography.bodyMedium)
-        item.amountText?.let { Text(text = it, style = MaterialTheme.typography.bodyMedium) }
+        item.amountText?.let { Text(text = it, style = MaterialTheme.typography.titleMedium) }
     }
 }
 

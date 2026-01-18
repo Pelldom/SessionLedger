@@ -13,6 +13,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import java.util.Locale
+import press.pelldom.sessionledger.mobile.billing.BillingEngine
+import press.pelldom.sessionledger.mobile.settings.SettingsRepository
+import press.pelldom.sessionledger.mobile.settings.dataStore
 import press.pelldom.sessionledger.mobile.data.db.AppDatabase
 import press.pelldom.sessionledger.mobile.data.db.DefaultCategory
 import press.pelldom.sessionledger.mobile.data.db.entities.CategoryEntity
@@ -21,6 +25,7 @@ import press.pelldom.sessionledger.mobile.data.db.entities.SessionEntity
 class SessionListViewModel(app: Application) : AndroidViewModel(app) {
 
     private val db = AppDatabase.getInstance(app)
+    private val settingsRepo = SettingsRepository(app.dataStore)
     private val _items = MutableStateFlow<List<SessionListItemUiModel>>(emptyList())
     val items: StateFlow<List<SessionListItemUiModel>> = _items
 
@@ -31,10 +36,11 @@ class SessionListViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             val sessionsFlow = db.sessionDao().observeEndedSessionsNewestFirst().distinctUntilChanged()
             val categoriesFlow = db.categoryDao().observeAllCategories().distinctUntilChanged()
+            val settingsFlow = settingsRepo.observeGlobalSettings().distinctUntilChanged()
 
-            sessionsFlow.combine(categoriesFlow) { sessions, categories ->
+            combine(sessionsFlow, categoriesFlow, settingsFlow) { sessions, categories, settings ->
                 val categoryById = categories.associateBy { it.id }
-                sessions.map { s -> s.toUiModel(zone, fmt, categoryById) }
+                sessions.map { s -> s.toUiModel(zone, fmt, categoryById, settings) }
             }.collect { items ->
                 _items.value = items
             }
@@ -44,7 +50,8 @@ class SessionListViewModel(app: Application) : AndroidViewModel(app) {
     private fun SessionEntity.toUiModel(
         zone: ZoneId,
         fmt: DateTimeFormatter,
-        categoryById: Map<String, CategoryEntity>
+        categoryById: Map<String, CategoryEntity>,
+        settings: press.pelldom.sessionledger.mobile.settings.GlobalSettings
     ): SessionListItemUiModel {
         val dateMs = this.endTimeMs ?: this.startTimeMs
         val dateText = Instant.ofEpochMilli(dateMs).atZone(zone).format(fmt)
@@ -52,17 +59,22 @@ class SessionListViewModel(app: Application) : AndroidViewModel(app) {
         val durationMs = max(0L, ((this.endTimeMs ?: this.startTimeMs) - this.startTimeMs) - this.pausedTotalMs)
         val durationText = formatDuration(durationMs)
 
-        val categoryText =
-            categoryById[this.categoryId]?.name
-                ?: categoryById[DefaultCategory.UNCATEGORIZED_ID]?.name
-                ?: DefaultCategory.UNCATEGORIZED_NAME
+        val category = categoryById[this.categoryId] ?: categoryById[DefaultCategory.UNCATEGORIZED_ID]
+        val categoryText = category?.name ?: DefaultCategory.UNCATEGORIZED_NAME
+
+        val amountText = try {
+            val result = BillingEngine.calculateForEndedSession(session = this, category = category, settings = settings)
+            "$" + String.format(Locale.CANADA, "%.2f", result.finalCost)
+        } catch (_: Throwable) {
+            null
+        }
 
         return SessionListItemUiModel(
             id = this.id,
             dateText = dateText,
             durationText = durationText,
             categoryText = categoryText,
-            amountText = null
+            amountText = amountText
         )
     }
 

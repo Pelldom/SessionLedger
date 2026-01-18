@@ -21,3 +21,15 @@ All notable changes to SessionLedger will be documented in this file.
 
 ### Fixed
 - Category detail save/back navigation behavior (no activity finish)
+
+## [0.1.3] - 2026-01-18
+### Added
+- Read-only billing visibility on Sessions list (final billed amount)
+- Read-only Billing Summary section on Session Detail (resolved values + final amount)
+
+### Notes
+- No billing behavior changes (uses existing BillingEngine)
+
+## [0.1.4] - 2026-01-18
+### Changed
+- Improved discoverability of editable Session Detail fields with subtle trailing Material affordances

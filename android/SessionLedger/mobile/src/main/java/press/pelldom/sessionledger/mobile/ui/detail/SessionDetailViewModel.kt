@@ -12,13 +12,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
+import java.util.Locale
+import press.pelldom.sessionledger.mobile.billing.BillingEngine
+import press.pelldom.sessionledger.mobile.billing.RoundingMode
+import press.pelldom.sessionledger.mobile.billing.SourceType
 import press.pelldom.sessionledger.mobile.billing.SessionState
 import press.pelldom.sessionledger.mobile.data.db.AppDatabase
 import press.pelldom.sessionledger.mobile.data.db.DefaultCategory
 import press.pelldom.sessionledger.mobile.data.db.entities.CategoryEntity
 import press.pelldom.sessionledger.mobile.data.db.entities.SessionEntity
+import press.pelldom.sessionledger.mobile.settings.SettingsRepository
+import press.pelldom.sessionledger.mobile.settings.dataStore
 
 data class SessionDetailUiState(
     val loading: Boolean = true,
@@ -34,6 +41,13 @@ data class SessionDetailUiState(
     val categoryId: String = DefaultCategory.UNCATEGORIZED_ID,
     val categoryName: String = DefaultCategory.UNCATEGORIZED_NAME,
     val categories: List<CategoryEntity> = emptyList(),
+
+    // Billing summary (read-only)
+    val billingDurationText: String = "",
+    val billingHourlyRateText: String = "",
+    val billingRoundingText: String = "",
+    val billingMinimumText: String = "",
+    val billingFinalAmountText: String = "",
 )
 
 class SessionDetailViewModel(
@@ -42,6 +56,7 @@ class SessionDetailViewModel(
 ) : AndroidViewModel(app) {
 
     private val db = AppDatabase.getInstance(app)
+    private val settingsRepo = SettingsRepository(app.dataStore)
     private val _uiState = MutableStateFlow(SessionDetailUiState())
     val uiState: StateFlow<SessionDetailUiState> = _uiState
 
@@ -77,6 +92,11 @@ class SessionDetailViewModel(
             val categoryName = categories.firstOrNull { it.id == session.categoryId }?.name
                 ?: categories.firstOrNull { it.id == DefaultCategory.UNCATEGORIZED_ID }?.name
                 ?: DefaultCategory.UNCATEGORIZED_NAME
+
+            val category = categories.firstOrNull { it.id == session.categoryId }
+                ?: categories.firstOrNull { it.id == DefaultCategory.UNCATEGORIZED_ID }
+
+            val billing = computeBillingSummary(session, category, settingsRepo)
             _uiState.value = SessionDetailUiState(
                 loading = false,
                 notFound = false,
@@ -90,7 +110,12 @@ class SessionDetailViewModel(
                 durationText = formatDuration(derivedDurationMs(session, startMs!!, endMs)),
                 categoryId = session.categoryId,
                 categoryName = categoryName,
-                categories = categories
+                categories = categories,
+                billingDurationText = billing.durationText,
+                billingHourlyRateText = billing.hourlyRateText,
+                billingRoundingText = billing.roundingText,
+                billingMinimumText = billing.minimumText,
+                billingFinalAmountText = billing.finalAmountText
             )
 
             // Keep categories up to date (e.g. after add/rename/delete elsewhere).
@@ -278,6 +303,74 @@ class SessionDetailViewModel(
             String.format("%d:%02d:%02d", hours, minutes, seconds)
         } else {
             String.format("%02d:%02d", minutes, seconds)
+        }
+    }
+
+    private data class BillingSummary(
+        val durationText: String,
+        val hourlyRateText: String,
+        val roundingText: String,
+        val minimumText: String,
+        val finalAmountText: String
+    )
+
+    private suspend fun computeBillingSummary(
+        session: SessionEntity,
+        category: CategoryEntity?,
+        settingsRepo: SettingsRepository
+    ): BillingSummary {
+        return try {
+            val settings = settingsRepo.observeGlobalSettings().first()
+            val result = BillingEngine.calculateForEndedSession(session = session, category = category, settings = settings)
+            val resolved = result.resolved
+
+            val duration = formatDuration((result.trackedSeconds * 1000L).coerceAtLeast(0L))
+
+            val rateSuffix = if (resolved.rateSource == SourceType.GLOBAL) " (Default)" else ""
+            val hourlyRateText = "$" + String.format(Locale.CANADA, "%.2f", resolved.ratePerHour) + "/hr" + rateSuffix
+
+            val roundingDir = if (resolved.roundingMode == RoundingMode.SIX_MINUTE) {
+                resolved.roundingDirection?.name ?: settings.defaultRoundingDirection.name
+            } else {
+                ""
+            }
+            val roundingSuffix = if (resolved.roundingSource == SourceType.GLOBAL) " (Default)" else ""
+            val roundingText =
+                if (resolved.roundingMode == RoundingMode.SIX_MINUTE) {
+                    "${resolved.roundingMode.name} / $roundingDir$roundingSuffix"
+                } else {
+                    resolved.roundingMode.name + roundingSuffix
+                }
+
+            // Minimum applied (single value): show only what actually changed the billed result.
+            val timeApplied = resolved.minTimeSeconds > 0L && result.billableSeconds == resolved.minTimeSeconds && result.roundedSeconds < resolved.minTimeSeconds
+            val chargeApplied = resolved.minCharge > 0.0 && result.finalCost == resolved.minCharge && result.costPreMinCharge < resolved.minCharge
+
+            val (minText, minSource) = when {
+                timeApplied -> String.format(Locale.CANADA, "%.2f", resolved.minTimeSeconds.toDouble() / 3600.0) + " hr" to resolved.minTimeSource
+                chargeApplied -> "$" + String.format(Locale.CANADA, "%.2f", resolved.minCharge) to resolved.minChargeSource
+                else -> "None" to SourceType.NONE
+            }
+            val minSuffix = if (minSource == SourceType.GLOBAL) " (Default)" else ""
+            val minimumText = minText + minSuffix
+
+            val finalAmountText = "$" + String.format(Locale.CANADA, "%.2f", result.finalCost)
+
+            BillingSummary(
+                durationText = duration,
+                hourlyRateText = hourlyRateText,
+                roundingText = roundingText,
+                minimumText = minimumText,
+                finalAmountText = finalAmountText
+            )
+        } catch (_: Throwable) {
+            BillingSummary(
+                durationText = "",
+                hourlyRateText = "",
+                roundingText = "",
+                minimumText = "",
+                finalAmountText = ""
+            )
         }
     }
 }

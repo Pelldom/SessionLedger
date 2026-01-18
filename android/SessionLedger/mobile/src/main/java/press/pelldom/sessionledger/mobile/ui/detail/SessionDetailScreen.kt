@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -28,6 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -101,6 +104,18 @@ fun SessionDetailScreen(sessionId: String, onDone: () -> Unit) {
                     editingTarget = EditingTarget.END
                     showDatePicker = true
                 }
+            )
+        }
+
+        // Billing Summary (read-only) - placed after session detail fields
+        if (ui.billingFinalAmountText.isNotBlank()) {
+            Text(text = "Billing Summary", style = MaterialTheme.typography.titleMedium)
+            Text(text = "Rate: ${ui.billingHourlyRateText}", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Rounding: ${ui.billingRoundingText}", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Minimum: ${ui.billingMinimumText}", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = ui.billingFinalAmountText,
+                style = MaterialTheme.typography.headlineSmall
             )
         }
 
@@ -255,14 +270,24 @@ private enum class EditingTarget { START, END }
 private fun ReadonlyPickerField(label: String, value: String, onClick: () -> Unit) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(text = label, style = MaterialTheme.typography.labelLarge)
-        Text(
-            text = value,
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(onClick = onClick)
                 .padding(vertical = 10.dp),
-            style = MaterialTheme.typography.bodyLarge
-        )
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = value,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
