@@ -255,16 +255,14 @@ class CategoryDetailViewModel(
         }
 
         val (minSeconds, minAmt) = minimumToPersist(current)
-        val (baseSel, baseHours, baseCharge) = toMinimumUi(baseline)
+        val (baseSel, _, _) = toMinimumUi(baseline)
+        val uiRate = rateStr.takeIf { it.isNotEmpty() }?.toDoubleOrNull()
         val dirty =
             (nameTrimmed != baseline.name) ||
-                (rateStr.isEmpty() && baseline.defaultHourlyRate != null) ||
-                (rateStr.isNotEmpty() && baseline.defaultHourlyRate?.toString() != rateStr) ||
+                (uiRate != baseline.defaultHourlyRate) ||
                 (current.roundingMode != baseline.roundingMode) ||
                 (current.roundingDirection != baseline.roundingDirection) ||
                 (current.minimumSelection != baseSel) ||
-                (current.minimumSelection == CategoryMinimumSelection.TIME && hoursStr != baseHours) ||
-                (current.minimumSelection == CategoryMinimumSelection.CHARGE && chargeStr != baseCharge) ||
                 (baseline.minBillableSeconds != minSeconds) ||
                 (baseline.minChargeAmount != minAmt)
 

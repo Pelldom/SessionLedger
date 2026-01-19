@@ -78,3 +78,7 @@ All notable changes to SessionLedger will be documented in this file.
 - Session restore (unarchive)
 - Permanent delete with confirmation
 - Sessions list filter: Active / Archived
+
+## [0.2.4] - 2026-01-19
+### Fixed
+- False unsaved-changes prompt after saving category edits
