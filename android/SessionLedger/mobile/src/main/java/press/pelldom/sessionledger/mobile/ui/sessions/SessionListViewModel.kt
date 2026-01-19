@@ -22,6 +22,8 @@ import press.pelldom.sessionledger.mobile.data.db.DefaultCategory
 import press.pelldom.sessionledger.mobile.data.db.entities.CategoryEntity
 import press.pelldom.sessionledger.mobile.data.db.entities.SessionEntity
 
+enum class SessionListFilter { ACTIVE, ARCHIVED }
+
 class SessionListViewModel(app: Application) : AndroidViewModel(app) {
 
     private val db = AppDatabase.getInstance(app)
@@ -29,12 +31,26 @@ class SessionListViewModel(app: Application) : AndroidViewModel(app) {
     private val _items = MutableStateFlow<List<SessionListItemUiModel>>(emptyList())
     val items: StateFlow<List<SessionListItemUiModel>> = _items
 
+    private val _filter = MutableStateFlow(SessionListFilter.ACTIVE)
+    val filter: StateFlow<SessionListFilter> = _filter
+
+    fun setFilter(filter: SessionListFilter) {
+        _filter.value = filter
+    }
+
     init {
         val zone = ZoneId.systemDefault()
         val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
         viewModelScope.launch(Dispatchers.IO) {
-            val sessionsFlow = db.sessionDao().observeEndedSessionsNewestFirst().distinctUntilChanged()
+            val activeSessionsFlow = db.sessionDao().observeActiveEndedSessionsNewestFirst().distinctUntilChanged()
+            val archivedSessionsFlow = db.sessionDao().observeArchivedEndedSessionsNewestFirst().distinctUntilChanged()
+            val sessionsFlow = combine(_filter, activeSessionsFlow, archivedSessionsFlow) { f, active, archived ->
+                when (f) {
+                    SessionListFilter.ACTIVE -> active
+                    SessionListFilter.ARCHIVED -> archived
+                }
+            }.distinctUntilChanged()
             val categoriesFlow = db.categoryDao().observeAllCategories().distinctUntilChanged()
             val settingsFlow = settingsRepo.observeGlobalSettings().distinctUntilChanged()
 

@@ -14,7 +14,7 @@ import press.pelldom.sessionledger.mobile.data.db.entities.SessionEntity
 
 @Database(
     entities = [CategoryEntity::class, SessionEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(RoomConverters::class)
@@ -33,7 +33,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "sessionledger.db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .addCallback(object : Callback() {
                         override fun onOpen(db: SupportSQLiteDatabase) {
                             super.onOpen(db)
@@ -94,6 +94,14 @@ abstract class AppDatabase : RoomDatabase() {
 
                 db.execSQL("DROP TABLE sessions")
                 db.execSQL("ALTER TABLE sessions_new RENAME TO sessions")
+            }
+        }
+
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Sessions: add archiving columns (default: not archived)
+                db.execSQL("ALTER TABLE sessions ADD COLUMN isArchived INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE sessions ADD COLUMN archivedAtMillis INTEGER")
             }
         }
 

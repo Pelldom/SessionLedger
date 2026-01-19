@@ -31,6 +31,7 @@ data class SessionDetailUiState(
     val loading: Boolean = true,
     val notFound: Boolean = false,
     val isEditable: Boolean = false,
+    val isArchived: Boolean = false,
     val validationError: String? = null,
     val canSave: Boolean = false,
     val hasUnsavedTimingChanges: Boolean = false,
@@ -100,6 +101,7 @@ class SessionDetailViewModel(
                 loading = false,
                 notFound = false,
                 isEditable = isEditable,
+                isArchived = session.isArchived,
                 validationError = if (isEditable) null else "Active sessions cannot be edited.",
                 canSave = false,
                 startText = formatLocal(startMs!!),
@@ -165,6 +167,7 @@ class SessionDetailViewModel(
                             durationText = formatDuration(derivedDurationMs(s, s.startTimeMs, s.endTimeMs)),
                             categoryId = s.categoryId,
                             categoryName = resolvedCategoryName,
+                            isArchived = s.isArchived,
                             billingDurationText = b.durationText,
                             billingHourlyRateText = b.hourlyRateText,
                             billingRoundingText = b.roundingText,
@@ -173,6 +176,34 @@ class SessionDetailViewModel(
                         )
                     }
             }
+        }
+    }
+
+    fun archiveSession(onSuccess: () -> Unit) {
+        val session = loadedSession ?: return
+        if (session.state != SessionState.ENDED) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val nowMs = System.currentTimeMillis()
+            db.sessionDao().archiveSession(sessionId, nowMs)
+            withContext(Dispatchers.Main) { onSuccess() }
+        }
+    }
+
+    fun restoreSession(onSuccess: () -> Unit) {
+        val session = loadedSession ?: return
+        if (session.state != SessionState.ENDED) return
+        viewModelScope.launch(Dispatchers.IO) {
+            db.sessionDao().unarchiveSession(sessionId)
+            withContext(Dispatchers.Main) { onSuccess() }
+        }
+    }
+
+    fun deleteSession(onSuccess: () -> Unit) {
+        val session = loadedSession ?: return
+        if (session.state != SessionState.ENDED) return
+        viewModelScope.launch(Dispatchers.IO) {
+            db.sessionDao().deleteSession(sessionId)
+            withContext(Dispatchers.Main) { onSuccess() }
         }
     }
 

@@ -71,3 +71,10 @@ All notable changes to SessionLedger will be documented in this file.
 - App Settings screen (appearance, system defaults, app info, Pro placeholder)
 ### Changed
 - Theme selection with immediate apply (System / Light / Dark)
+
+## [0.2.3] - 2026-01-19
+### Added
+- Session archiving (hidden from default list; excluded from exports)
+- Session restore (unarchive)
+- Permanent delete with confirmation
+- Sessions list filter: Active / Archived

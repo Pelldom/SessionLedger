@@ -36,7 +36,8 @@ class CsvExporter {
         context: Context
     ): Uri {
         val sessions = db.sessionDao()
-            .observeEndedSessionsNewestFirst()
+            // Archived sessions are excluded from exports by default.
+            .observeActiveEndedSessionsNewestFirst()
             .first()
             .asSequence()
             .filter { s ->

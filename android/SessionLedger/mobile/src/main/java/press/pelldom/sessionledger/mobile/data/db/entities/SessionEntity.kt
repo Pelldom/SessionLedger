@@ -17,6 +17,10 @@ data class SessionEntity(
     val pausedTotalMs: Long = 0L,
     val lastStateChangeTimeMs: Long,
 
+    // Archiving (hides from default lists and excluded from exports by default)
+    val isArchived: Boolean = false,
+    val archivedAtMillis: Long? = null,
+
     val categoryId: String = press.pelldom.sessionledger.mobile.data.db.DefaultCategory.UNCATEGORIZED_ID,
     val notes: String? = null,
 
