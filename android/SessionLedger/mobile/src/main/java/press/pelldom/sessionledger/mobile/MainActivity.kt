@@ -61,7 +61,6 @@ class MainActivity : ComponentActivity() {
             val settings by repo.settings.collectAsState(initial = AppSettings())
 
             val dark = when {
-                settings.useSystemDefaults -> isSystemInDarkTheme()
                 settings.themeMode == ThemeMode.DARK -> true
                 settings.themeMode == ThemeMode.LIGHT -> false
                 else -> isSystemInDarkTheme()

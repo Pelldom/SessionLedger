@@ -52,9 +52,6 @@ fun AppSettingsScreen(onBack: () -> Unit) {
             info.longVersionCode
         }.getOrNull()
     }
-    val themeSelectorEnabled = !settings.useSystemDefaults
-    val effectiveThemeMode = if (settings.useSystemDefaults) ThemeMode.SYSTEM else settings.themeMode
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -78,20 +75,20 @@ fun AppSettingsScreen(onBack: () -> Unit) {
             SectionTitle("Appearance")
             ThemeRow(
                 label = "System default",
-                selected = effectiveThemeMode == ThemeMode.SYSTEM,
-                enabled = themeSelectorEnabled,
+                selected = settings.themeMode == ThemeMode.SYSTEM,
+                enabled = true,
                 onClick = { vm.setThemeMode(ThemeMode.SYSTEM) }
             )
             ThemeRow(
                 label = "Light",
-                selected = effectiveThemeMode == ThemeMode.LIGHT,
-                enabled = themeSelectorEnabled,
+                selected = settings.themeMode == ThemeMode.LIGHT,
+                enabled = true,
                 onClick = { vm.setThemeMode(ThemeMode.LIGHT) }
             )
             ThemeRow(
                 label = "Dark",
-                selected = effectiveThemeMode == ThemeMode.DARK,
-                enabled = themeSelectorEnabled,
+                selected = settings.themeMode == ThemeMode.DARK,
+                enabled = true,
                 onClick = { vm.setThemeMode(ThemeMode.DARK) }
             )
 
@@ -106,7 +103,7 @@ fun AppSettingsScreen(onBack: () -> Unit) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Use system defaults", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        "When enabled, theme follows the device setting.",
+                        "When enabled, use system language/locale/time zone defaults (future: currency).",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
