@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -212,6 +213,7 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
                                     maxLines = 1,
                                     softWrap = false,
                                     overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
@@ -256,10 +258,13 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
                 Text(
                     text = "SessionLedger v0.2.1",
                     color = Color.White,
-                    style = MaterialTheme.typography.caption2,
+                    style = MaterialTheme.typography.caption3,
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
-                        .padding(top = 2.dp)
+                        .padding(top = 4.dp, bottom = 2.dp),
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Clip
                 )
             }
         }
