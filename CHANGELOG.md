@@ -65,3 +65,9 @@ All notable changes to SessionLedger will be documented in this file.
 ### Changed
 - Watch UX polish: improved control button layout and prevented label wrapping
 - Watch hourly haptic reminders while a session is running
+
+## [0.2.2] - 2026-01-19
+### Added
+- App Settings screen (appearance, system defaults, app info, Pro placeholder)
+### Changed
+- Theme selection with immediate apply (System / Light / Dark)

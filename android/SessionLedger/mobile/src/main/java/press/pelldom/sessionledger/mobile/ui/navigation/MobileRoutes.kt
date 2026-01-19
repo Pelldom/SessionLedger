@@ -6,6 +6,7 @@ object MobileRoutes {
     const val SETTINGS = "settings"
     const val CATEGORIES = "categories"
     const val EXPORT = "export"
+    const val APP_SETTINGS = "app_settings"
 
     const val SESSION_DETAIL = "session_detail"
     const val SESSION_DETAIL_ROUTE = "session_detail/{sessionId}"

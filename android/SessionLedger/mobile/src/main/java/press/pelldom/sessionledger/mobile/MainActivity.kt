@@ -6,13 +6,17 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.Icon
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -40,15 +44,30 @@ import press.pelldom.sessionledger.mobile.ui.detail.SessionBillingOverrideScreen
 import press.pelldom.sessionledger.mobile.ui.detail.SessionTimingEditScreen
 import press.pelldom.sessionledger.mobile.ui.export.ExportScreen
 import press.pelldom.sessionledger.mobile.ui.sessions.SessionListScreen
+import press.pelldom.sessionledger.mobile.ui.settings.AppSettingsScreen
 import press.pelldom.sessionledger.mobile.ui.settings.SettingsScreen
 import press.pelldom.sessionledger.mobile.wear.WearCategoriesPublisher
 import press.pelldom.sessionledger.mobile.ui.AppVersion
+import press.pelldom.sessionledger.mobile.appsettings.AppSettings
+import press.pelldom.sessionledger.mobile.appsettings.AppSettingsRepository
+import press.pelldom.sessionledger.mobile.appsettings.ThemeMode
+import press.pelldom.sessionledger.mobile.settings.dataStore
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
+            val repo = remember { AppSettingsRepository(application.dataStore) }
+            val settings by repo.settings.collectAsState(initial = AppSettings())
+
+            val dark = when {
+                settings.useSystemDefaults -> isSystemInDarkTheme()
+                settings.themeMode == ThemeMode.DARK -> true
+                settings.themeMode == ThemeMode.LIGHT -> false
+                else -> isSystemInDarkTheme()
+            }
+
+            MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme()) {
                 MobileApp()
             }
         }
@@ -141,10 +160,12 @@ private fun MobileApp() {
             composable(MobileRoutes.CATEGORIES) {
                 CategoryManagementScreen(
                     onOpenSettings = { navController.navigate(MobileRoutes.SETTINGS) },
+                    onOpenAppSettings = { navController.navigate(MobileRoutes.APP_SETTINGS) },
                     onOpenCategory = { id -> navController.navigate(MobileRoutes.categoryDetailRoute(id)) }
                 )
             }
             composable(MobileRoutes.SETTINGS) { SettingsScreen(onBack = { navController.popBackStack() }) }
+            composable(MobileRoutes.APP_SETTINGS) { AppSettingsScreen(onBack = { navController.popBackStack() }) }
             composable(MobileRoutes.EXPORT) { ExportScreen(onDone = { navController.popBackStack() }) }
 
             composable(

@@ -35,6 +35,7 @@ import press.pelldom.sessionledger.mobile.settings.dataStore
 @Composable
 fun CategoryManagementScreen(
     onOpenSettings: () -> Unit,
+    onOpenAppSettings: () -> Unit,
     onOpenCategory: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -66,6 +67,13 @@ fun CategoryManagementScreen(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(text = "Categories", style = MaterialTheme.typography.headlineSmall)
             Button(onClick = { showAdd = true }) { Text("Add") }
+        }
+
+        OutlinedButton(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onOpenAppSettings
+        ) {
+            Text("App Settings")
         }
 
         OutlinedButton(
