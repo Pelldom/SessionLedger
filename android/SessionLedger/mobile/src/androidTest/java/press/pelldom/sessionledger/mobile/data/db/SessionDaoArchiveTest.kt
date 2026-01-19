@@ -76,5 +76,41 @@ class SessionDaoArchiveTest {
         val inRange = dao.getEndedSessionsInRange(startMs = 0L, endMs = 10_000L)
         assertEquals(listOf("s_active"), inRange.map { it.id })
     }
+
+    @Test
+    fun bulkArchiveArchivesOnlyEndedUnarchivedInRange() = runBlocking {
+        val dao = db.sessionDao()
+
+        val inRangeActive = SessionEntity(
+            id = "s_in_range",
+            startTimeMs = 10_000L,
+            endTimeMs = 20_000L,
+            state = SessionState.ENDED,
+            pausedTotalMs = 0L,
+            lastStateChangeTimeMs = 20_000L,
+            isArchived = false,
+            archivedAtMillis = null,
+            categoryId = DefaultCategory.UNCATEGORIZED_ID,
+            notes = null,
+            createdOnDevice = "phone",
+            updatedAtMs = 20_000L
+        )
+        val alreadyArchived = inRangeActive.copy(id = "s_already_archived", isArchived = true, archivedAtMillis = 30_000L)
+        val outOfRange = inRangeActive.copy(id = "s_out_of_range", startTimeMs = 1000L, endTimeMs = 2000L)
+
+        dao.insert(inRangeActive)
+        dao.insert(alreadyArchived)
+        dao.insert(outOfRange)
+
+        val archivedAt = 99_000L
+        val updated = dao.archiveEndedSessionsInRange(startMs = 5_000L, endExclusiveMs = 25_000L, archivedAtMillis = archivedAt)
+        assertEquals(1, updated)
+
+        val activeList = dao.observeActiveEndedSessionsNewestFirst().first().map { it.id }
+        val archivedList = dao.observeArchivedEndedSessionsNewestFirst().first().map { it.id }.toSet()
+
+        assertEquals(listOf("s_out_of_range"), activeList) // inRangeActive moved to archived; alreadyArchived stays archived
+        assertEquals(setOf("s_in_range", "s_already_archived"), archivedList)
+    }
 }
 

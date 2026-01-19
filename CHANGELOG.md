@@ -82,3 +82,8 @@ All notable changes to SessionLedger will be documented in this file.
 ## [0.2.4] - 2026-01-19
 ### Fixed
 - False unsaved-changes prompt after saving category edits
+
+## [0.2.5] - 2026-01-19
+### Added
+- Bulk archive workflow after export (optional prompt)
+- Default archive range derived from exported sessions

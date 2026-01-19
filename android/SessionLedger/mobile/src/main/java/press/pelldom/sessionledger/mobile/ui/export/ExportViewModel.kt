@@ -7,6 +7,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +39,12 @@ data class ExportUiState(
 
     val exporting: Boolean = false,
     val lastExportUri: String? = null,
-    val statusMessage: String? = null
+    val statusMessage: String? = null,
+
+    // Post-export bulk archive flow (derived from the sessions included in the last export)
+    val postExportArchivePrompt: Boolean = false,
+    val suggestedArchiveStart: LocalDate? = null,
+    val suggestedArchiveEnd: LocalDate? = null
 )
 
 class ExportViewModel(app: Application) : AndroidViewModel(app) {
@@ -56,6 +62,9 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
     private var baselineEnd: LocalDate? = null
     private var baselineAll: Boolean = true
     private var baselineSelected: Set<String> = emptySet()
+
+    private var lastExportAllCategories: Boolean = true
+    private var lastExportSelectedCategoryIds: Set<String> = emptySet()
 
     init {
         val today = LocalDate.now(zone)
@@ -144,6 +153,8 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
         val startMs = start.atStartOfDay(zone).toInstant().toEpochMilli()
         val endExclusiveMs = end.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val filters = if (current.allCategories) null else current.selectedCategoryIds
+        lastExportAllCategories = current.allCategories
+        lastExportSelectedCategoryIds = current.selectedCategoryIds
 
         _ui.value = _ui.value.copy(exporting = true, statusMessage = null)
         try {
@@ -159,11 +170,68 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
                 )
             }
 
-            _ui.value = _ui.value.copy(lastExportUri = uri.toString())
+            // Compute suggested archive range from the sessions included in the export.
+            val exportedSessions = withContext(Dispatchers.IO) {
+                db.sessionDao()
+                    .getEndedSessionsInRange(startMs = startMs, endMs = endExclusiveMs)
+                    .asSequence()
+                    .filter { s ->
+                        when {
+                            filters != null -> filters.contains(s.categoryId)
+                            else -> true
+                        }
+                    }
+                    .toList()
+            }
+
+            val suggestedStart = exportedSessions.minOfOrNull { it.startTimeMs }
+                ?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalDate() }
+                ?: current.startDate
+            val suggestedEnd = exportedSessions.maxOfOrNull { requireNotNull(it.endTimeMs) }
+                ?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalDate() }
+                ?: current.endDate
+
+            _ui.value = _ui.value.copy(
+                lastExportUri = uri.toString(),
+                postExportArchivePrompt = true,
+                suggestedArchiveStart = suggestedStart,
+                suggestedArchiveEnd = suggestedEnd
+            )
             return uri
         } finally {
             _ui.value = _ui.value.copy(exporting = false)
         }
+    }
+
+    fun dismissPostExportArchivePrompt() {
+        _ui.value = _ui.value.copy(postExportArchivePrompt = false)
+    }
+
+    suspend fun archiveLastExportedSessions(startDate: LocalDate, endDate: LocalDate): Int {
+        val startMs = startDate.atStartOfDay(zone).toInstant().toEpochMilli()
+        val endExclusiveMs = endDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val nowMs = System.currentTimeMillis()
+
+        val count = withContext(Dispatchers.IO) {
+            if (lastExportAllCategories) {
+                db.sessionDao().archiveEndedSessionsInRange(
+                    startMs = startMs,
+                    endExclusiveMs = endExclusiveMs,
+                    archivedAtMillis = nowMs
+                )
+            } else {
+                db.sessionDao().archiveEndedSessionsInRangeForCategories(
+                    startMs = startMs,
+                    endExclusiveMs = endExclusiveMs,
+                    categoryIds = lastExportSelectedCategoryIds.toList(),
+                    archivedAtMillis = nowMs
+                )
+            }
+        }
+
+        // Clear the prompt once action is taken.
+        _ui.value = _ui.value.copy(postExportArchivePrompt = false)
+        return count
     }
 
     fun shareLastExport(context: Context) {

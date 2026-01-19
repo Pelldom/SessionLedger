@@ -63,6 +63,46 @@ interface SessionDao {
     @Query("UPDATE sessions SET isArchived = 0, archivedAtMillis = NULL WHERE id = :id")
     suspend fun unarchiveSession(id: String)
 
+    @Query(
+        """
+        UPDATE sessions
+        SET isArchived = 1,
+            archivedAtMillis = :archivedAtMillis
+        WHERE state = 'ENDED'
+          AND isArchived = 0
+          AND startTimeMs >= :startMs
+          AND startTimeMs < :endExclusiveMs
+          AND endTimeMs IS NOT NULL
+          AND endTimeMs < :endExclusiveMs
+        """
+    )
+    suspend fun archiveEndedSessionsInRange(
+        startMs: Long,
+        endExclusiveMs: Long,
+        archivedAtMillis: Long
+    ): Int
+
+    @Query(
+        """
+        UPDATE sessions
+        SET isArchived = 1,
+            archivedAtMillis = :archivedAtMillis
+        WHERE state = 'ENDED'
+          AND isArchived = 0
+          AND categoryId IN (:categoryIds)
+          AND startTimeMs >= :startMs
+          AND startTimeMs < :endExclusiveMs
+          AND endTimeMs IS NOT NULL
+          AND endTimeMs < :endExclusiveMs
+        """
+    )
+    suspend fun archiveEndedSessionsInRangeForCategories(
+        startMs: Long,
+        endExclusiveMs: Long,
+        categoryIds: List<String>,
+        archivedAtMillis: Long
+    ): Int
+
     @Query("UPDATE sessions SET categoryId = :toCategoryId WHERE categoryId = :fromCategoryId")
     suspend fun reassignCategory(fromCategoryId: String, toCategoryId: String)
 }

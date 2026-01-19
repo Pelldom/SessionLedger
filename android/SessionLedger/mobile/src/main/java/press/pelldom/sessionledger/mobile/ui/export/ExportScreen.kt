@@ -52,7 +52,7 @@ import java.time.format.DateTimeFormatter
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-fun ExportScreen(onDone: () -> Unit) {
+fun ExportScreen(onDone: () -> Unit, onArchivedDone: () -> Unit) {
     val context = LocalContext.current
     val viewModel = remember { ExportViewModel(context.applicationContext as android.app.Application) }
     val ui by viewModel.ui.collectAsState()
@@ -65,6 +65,12 @@ fun ExportScreen(onDone: () -> Unit) {
     var showBackConfirm by remember { mutableStateOf(false) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
+    var showPostExportArchivePrompt by remember { mutableStateOf(false) }
+    var showArchiveRangeDialog by remember { mutableStateOf(false) }
+    var archiveStartDate by remember { mutableStateOf<LocalDate?>(null) }
+    var archiveEndDate by remember { mutableStateOf<LocalDate?>(null) }
+    var showArchiveStartPicker by remember { mutableStateOf(false) }
+    var showArchiveEndPicker by remember { mutableStateOf(false) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -113,6 +119,8 @@ fun ExportScreen(onDone: () -> Unit) {
                                 val uri = viewModel.exportNow(context)
                                 Log.d("SL_EXPORT", "Export success: uri=$uri")
                                 snackbarHostState.showSnackbar("Export saved to Downloads/SessionLedger")
+                                // Trigger post-export archive prompt.
+                                showPostExportArchivePrompt = true
                             } catch (t: Throwable) {
                                 Log.e("SL_EXPORT", "Export failed", t)
                                 snackbarHostState.showSnackbar("Export failed: ${t.message ?: "Unknown error"}")
@@ -281,6 +289,90 @@ fun ExportScreen(onDone: () -> Unit) {
         )
     }
 
+    if (showPostExportArchivePrompt && ui.postExportArchivePrompt) {
+        AlertDialog(
+            onDismissRequest = {
+                showPostExportArchivePrompt = false
+                viewModel.dismissPostExportArchivePrompt()
+            },
+            title = { Text("Archive exported sessions?") },
+            text = { Text("The sessions included in this export can be archived to keep future exports clean.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // Initialize archive range from export contents.
+                        archiveStartDate = ui.suggestedArchiveStart
+                        archiveEndDate = ui.suggestedArchiveEnd
+                        showPostExportArchivePrompt = false
+                        showArchiveRangeDialog = true
+                    }
+                ) { Text("Archive") }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        showPostExportArchivePrompt = false
+                        viewModel.dismissPostExportArchivePrompt()
+                    }
+                ) { Text("Not now") }
+            }
+        )
+    }
+
+    if (showArchiveRangeDialog) {
+        val start = archiveStartDate
+        val end = archiveEndDate
+        val canArchive = start != null && end != null && !end.isBefore(start)
+
+        AlertDialog(
+            onDismissRequest = { showArchiveRangeDialog = false },
+            title = { Text("Archive sessions") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    PickerRow(
+                        label = "Start date",
+                        value = start?.format(dateFmt) ?: "Select",
+                        onClick = { showArchiveStartPicker = true }
+                    )
+                    PickerRow(
+                        label = "End date",
+                        value = end?.format(dateFmt) ?: "Select",
+                        onClick = { showArchiveEndPicker = true }
+                    )
+                    if (!canArchive) {
+                        Text(
+                            text = "End date must be on or after start date.",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = canArchive,
+                    onClick = {
+                        val s = start ?: return@Button
+                        val e = end ?: return@Button
+                        showArchiveRangeDialog = false
+                        scope.launch {
+                            try {
+                                val count = viewModel.archiveLastExportedSessions(s, e)
+                                if (count <= 0) snackbarHostState.showSnackbar("No sessions to archive")
+                                else snackbarHostState.showSnackbar("Sessions archived")
+                                onArchivedDone()
+                            } catch (t: Throwable) {
+                                snackbarHostState.showSnackbar("Archive failed: ${t.message ?: "Unknown error"}")
+                            }
+                        }
+                    }
+                ) { Text("Archive") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showArchiveRangeDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
     if (showStartPicker) {
         val initial = ui.startDate ?: LocalDate.now(zone)
         val initialSelectedUtcMidnightMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
@@ -326,6 +418,54 @@ fun ExportScreen(onDone: () -> Unit) {
                 ) { Text("OK") }
             },
             dismissButton = { OutlinedButton(onClick = { showEndPicker = false }) { Text("Cancel") } }
+        ) { DatePicker(state = datePickerState) }
+    }
+
+    if (showArchiveStartPicker) {
+        val initial = archiveStartDate ?: ui.startDate ?: LocalDate.now(zone)
+        val initialSelectedUtcMidnightMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        val datePickerState = androidx.compose.material3.rememberDatePickerState(
+            initialSelectedDateMillis = initialSelectedUtcMidnightMillis
+        )
+        DatePickerDialog(
+            onDismissRequest = { showArchiveStartPicker = false },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val selected = datePickerState.selectedDateMillis
+                        if (selected != null) {
+                            val pickedDate = Instant.ofEpochMilli(selected).atZone(ZoneOffset.UTC).toLocalDate()
+                            archiveStartDate = pickedDate
+                        }
+                        showArchiveStartPicker = false
+                    }
+                ) { Text("OK") }
+            },
+            dismissButton = { OutlinedButton(onClick = { showArchiveStartPicker = false }) { Text("Cancel") } }
+        ) { DatePicker(state = datePickerState) }
+    }
+
+    if (showArchiveEndPicker) {
+        val initial = archiveEndDate ?: ui.endDate ?: LocalDate.now(zone)
+        val initialSelectedUtcMidnightMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        val datePickerState = androidx.compose.material3.rememberDatePickerState(
+            initialSelectedDateMillis = initialSelectedUtcMidnightMillis
+        )
+        DatePickerDialog(
+            onDismissRequest = { showArchiveEndPicker = false },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val selected = datePickerState.selectedDateMillis
+                        if (selected != null) {
+                            val pickedDate = Instant.ofEpochMilli(selected).atZone(ZoneOffset.UTC).toLocalDate()
+                            archiveEndDate = pickedDate
+                        }
+                        showArchiveEndPicker = false
+                    }
+                ) { Text("OK") }
+            },
+            dismissButton = { OutlinedButton(onClick = { showArchiveEndPicker = false }) { Text("Cancel") } }
         ) { DatePicker(state = datePickerState) }
     }
 }

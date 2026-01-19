@@ -13,6 +13,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -21,13 +22,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun SessionListScreen(onSessionClick: (String) -> Unit, onExportClick: () -> Unit) {
+fun SessionListScreen(
+    onSessionClick: (String) -> Unit,
+    onExportClick: () -> Unit,
+    resetToActiveNonce: Int = 0
+) {
     val context = LocalContext.current
     val viewModel = remember {
         SessionListViewModel(context.applicationContext as android.app.Application)
     }
     val items by viewModel.items.collectAsState()
     val filter by viewModel.filter.collectAsState()
+
+    LaunchedEffect(resetToActiveNonce) {
+        viewModel.setFilter(SessionListFilter.ACTIVE)
+    }
 
     LazyColumn(
         modifier = Modifier.padding(16.dp),

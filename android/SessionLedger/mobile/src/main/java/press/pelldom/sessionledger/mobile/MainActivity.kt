@@ -79,6 +79,9 @@ private fun MobileApp() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val sessionsFilterResetNonce = androidx.compose.runtime.saveable.rememberSaveable {
+        androidx.compose.runtime.mutableIntStateOf(0)
+    }
 
     val bottomItems = remember {
         listOf(
@@ -153,7 +156,8 @@ private fun MobileApp() {
             composable(MobileRoutes.SESSIONS) {
                 SessionListScreen(
                     onSessionClick = { id -> navController.navigate(MobileRoutes.sessionDetailRoute(id)) },
-                    onExportClick = { navController.navigate(MobileRoutes.EXPORT) }
+                    onExportClick = { navController.navigate(MobileRoutes.EXPORT) },
+                    resetToActiveNonce = sessionsFilterResetNonce.intValue
                 )
             }
             composable(MobileRoutes.CATEGORIES) {
@@ -165,7 +169,15 @@ private fun MobileApp() {
             }
             composable(MobileRoutes.SETTINGS) { SettingsScreen(onBack = { navController.popBackStack() }) }
             composable(MobileRoutes.APP_SETTINGS) { AppSettingsScreen(onBack = { navController.popBackStack() }) }
-            composable(MobileRoutes.EXPORT) { ExportScreen(onDone = { navController.popBackStack() }) }
+            composable(MobileRoutes.EXPORT) {
+                ExportScreen(
+                    onDone = { navController.popBackStack() },
+                    onArchivedDone = {
+                        sessionsFilterResetNonce.intValue++
+                        navController.popBackStack(MobileRoutes.SESSIONS, false)
+                    }
+                )
+            }
 
             composable(
                 route = MobileRoutes.CATEGORY_DETAIL_ROUTE,
