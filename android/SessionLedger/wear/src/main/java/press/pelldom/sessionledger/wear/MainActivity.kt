@@ -27,6 +27,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -88,6 +91,14 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun WearRoot(viewModel: SessionControlViewModel) {
     val uiState by viewModel.uiState.collectAsState()
+    val haptics = LocalHapticFeedback.current
+
+    LaunchedEffect(Unit) {
+        viewModel.hourlyHapticEvents.collect {
+            // Same light haptic used for Start/Pause actions (also used below).
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
 
     // Top clock (HH:mm), updates once per minute.
     val clockFormatter = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
@@ -121,8 +132,14 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
     }
 
     val (primaryLabel, onPrimary) = when (uiState.state) {
-        WatchSessionState.NONE -> "Start" to { viewModel.onStartPressed() }
-        WatchSessionState.RUNNING, WatchSessionState.PAUSED -> "End" to { viewModel.end() }
+        WatchSessionState.NONE -> "Start" to {
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            viewModel.onStartPressed()
+        }
+        WatchSessionState.RUNNING, WatchSessionState.PAUSED -> "End" to {
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            viewModel.end()
+        }
     }
 
     val secondaryLabel: String? = when (uiState.state) {
@@ -131,8 +148,14 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
         WatchSessionState.NONE -> null
     }
     val onSecondary: (() -> Unit)? = when (uiState.state) {
-        WatchSessionState.RUNNING -> ({ viewModel.pause() })
-        WatchSessionState.PAUSED -> ({ viewModel.resume() })
+        WatchSessionState.RUNNING -> ({
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            viewModel.pause()
+        })
+        WatchSessionState.PAUSED -> ({
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            viewModel.resume()
+        })
         WatchSessionState.NONE -> null
     }
 
@@ -170,7 +193,7 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
                     )
                     for (cat in uiState.categories) {
                         Button(onClick = { viewModel.startWithCategory(cat.id) }) {
-                            Text(cat.name)
+                            Text(cat.name, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
@@ -186,22 +209,37 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
             }
 
             // BOTTOM
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 if (uiState.showCategoryPicker) {
-                    Button(onClick = { viewModel.dismissCategoryPicker() }) { Text("Cancel") }
+                    Button(modifier = Modifier.fillMaxWidth(), onClick = { viewModel.dismissCategoryPicker() }) {
+                        Text("Cancel", maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                    }
                 } else {
-                    Button(onClick = onPrimary) { Text(primaryLabel) }
+                    Button(modifier = Modifier.fillMaxWidth(), onClick = onPrimary) {
+                        Text(primaryLabel, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                    }
 
                     if (secondaryLabel != null && onSecondary != null) {
-                        Button(onClick = onSecondary) { Text(secondaryLabel) }
+                        Button(modifier = Modifier.fillMaxWidth(), onClick = onSecondary) {
+                            Text(secondaryLabel, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                 }
+
+                Text(
+                    text = "SessionLedger v0.2.1",
+                    color = Color.White,
+                    style = MaterialTheme.typography.caption2,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(top = 2.dp)
+                )
             }
         }
     }

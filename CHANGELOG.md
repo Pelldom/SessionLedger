@@ -60,3 +60,8 @@ All notable changes to SessionLedger will be documented in this file.
 ### Added
 - CSV export UI for sessions (date range + category filter)
 - Exports are saved to Downloads/SessionLedger and can be shared optionally
+
+## [0.2.1] - 2026-01-19
+### Changed
+- Watch UX polish: improved control button layout and prevented label wrapping
+- Watch hourly haptic reminders while a session is running

@@ -13,6 +13,8 @@ import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -49,6 +51,11 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
     private val _uiState = MutableStateFlow(WatchSessionUiState())
     val uiState: StateFlow<WatchSessionUiState> = _uiState
     private var tickerJob: Job? = null
+
+    // Hourly haptic reminder (UI triggers haptic when an event is emitted).
+    private val _hourlyHapticEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val hourlyHapticEvents: SharedFlow<Unit> = _hourlyHapticEvents
+    private var lastNotifiedHour: Long = 0L
 
     init {
         dataClient.addListener(this)
@@ -131,6 +138,17 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
 
         Log.d(tag, "Received /session/state: $rawState start=$start elapsed=$elapsed")
 
+        // Keep lastNotifiedHour consistent across data refreshes.
+        val elapsedHours = (elapsed / 3_600_000L).coerceAtLeast(0L)
+        lastNotifiedHour = when (state) {
+            WatchSessionState.NONE -> 0L
+            WatchSessionState.PAUSED -> lastNotifiedHour.coerceAtLeast(elapsedHours)
+            WatchSessionState.RUNNING -> {
+                // If elapsed hours went backwards (new session), reset baseline.
+                if (elapsedHours < lastNotifiedHour) elapsedHours else lastNotifiedHour.coerceAtLeast(elapsedHours)
+            }
+        }
+
         _uiState.value = WatchSessionUiState(
             state = state,
             startTimeMillis = start,
@@ -148,9 +166,17 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
                     delay(1000L)
                     val current = _uiState.value
                     if (current.state != WatchSessionState.RUNNING) break
-                    _uiState.value = current.copy(
-                        displayedElapsedMillis = current.displayedElapsedMillis + 1000L
-                    )
+                    val nextDisplayed = current.displayedElapsedMillis + 1000L
+                    _uiState.value = current.copy(displayedElapsedMillis = nextDisplayed)
+
+                    // Hourly reminder: trigger once per full hour while RUNNING.
+                    val hours = (nextDisplayed / 3_600_000L).coerceAtLeast(0L)
+                    if (hours > lastNotifiedHour) {
+                        lastNotifiedHour = hours
+                        if (hours >= 1L) {
+                            _hourlyHapticEvents.tryEmit(Unit)
+                        }
+                    }
                 }
             }
         }
