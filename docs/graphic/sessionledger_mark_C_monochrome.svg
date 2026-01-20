@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img">
+  <!-- Outer ring (stroke fully inside viewBox) -->
+  <circle
+    cx="50"
+    cy="50"
+    r="46"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="8"
+  />
+
+  <!-- Recorded session arc (scaled proportionally; ends at true 3 o'clock) -->
+  <path
+    d="
+      M 68.21 18.47
+      A 36.42 36.42 0 0 1 86.42 50.00
+    "
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
+</svg>
