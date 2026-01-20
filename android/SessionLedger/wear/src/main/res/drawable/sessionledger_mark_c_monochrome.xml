@@ -10,7 +10,7 @@
         android:fillColor="@android:color/transparent"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="8"
-        android:pathData="M50,4 A46,46 0 1,1 49.999,4 Z" />
+        android:pathData="M50,4 a46,46 0 1,1 0,92 a46,46 0 1,1 0,-92" />
 
     <path
         android:fillColor="@android:color/transparent"

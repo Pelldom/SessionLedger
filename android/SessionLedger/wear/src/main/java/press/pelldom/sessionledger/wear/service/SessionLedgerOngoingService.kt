@@ -25,7 +25,7 @@ class SessionLedgerOngoingService : Service() {
     private fun startOrUpdateForeground(state: String) {
         ensureChannel()
 
-        val smallIcon = when (state) {
+        val requestedIcon = when (state) {
             STATE_PAUSED -> R.drawable.sessionledger_mark_c_notification
             else -> R.drawable.sessionledger_mark_c_monochrome
         }
@@ -45,8 +45,41 @@ class SessionLedgerOngoingService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(smallIcon)
+        try {
+            val notification = buildNotification(
+                iconRes = requestedIcon,
+                contentText = contentText,
+                contentIntent = contentIntent
+            )
+            // Use the 2-arg startForeground to avoid requiring a specific foreground service type.
+            startForeground(NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            // Defensive fallback: never crash due to icon/resource issues. Try monochrome for all states.
+            try {
+                val fallbackNotification = buildNotification(
+                    iconRes = R.drawable.sessionledger_mark_c_monochrome,
+                    contentText = contentText,
+                    contentIntent = contentIntent
+                )
+                startForeground(NOTIFICATION_ID, fallbackNotification)
+            } catch (_: Exception) {
+                // Last resort: fail closed (no indicator) but keep the app alive.
+                stopSelf()
+            }
+        }
+    }
+
+    private fun buildNotification(
+        iconRes: Int,
+        contentText: String,
+        contentIntent: PendingIntent
+    ): android.app.Notification {
+        // Ensure the icon resource exists; this throws Resources.NotFoundException if missing/invalid.
+        @Suppress("DEPRECATION")
+        resources.getDrawable(iconRes)
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(iconRes)
             .setContentTitle("SessionLedger")
             .setContentText(contentText)
             .setContentIntent(contentIntent)
@@ -55,9 +88,6 @@ class SessionLedgerOngoingService : Service() {
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
-
-        // Use the 2-arg startForeground to avoid requiring a specific foreground service type.
-        startForeground(NOTIFICATION_ID, notification)
     }
 
     private fun ensureChannel() {

@@ -273,7 +273,7 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
                 }
 
                 Text(
-                    text = "SessionLedger v0.3.1",
+                    text = "SessionLedger v0.3.2",
                     color = Color.White,
                     style = MaterialTheme.typography.caption3,
                     modifier = Modifier
