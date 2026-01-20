@@ -106,3 +106,7 @@ All notable changes to SessionLedger will be documented in this file.
 ## [0.3.2] - 2026-01-20
 ### Fixed
 - Wear: Fixed wear crash caused by missing/invalid notification icon resource
+
+## [0.3.3] - 2026-01-20
+### Changed
+- Wear: Removed ongoing indicator feature (abandoned due to stability concerns)
