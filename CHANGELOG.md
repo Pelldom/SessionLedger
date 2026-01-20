@@ -71,6 +71,8 @@ All notable changes to SessionLedger will be documented in this file.
 - App Settings screen (appearance, system defaults, app info, Pro placeholder)
 ### Changed
 - Theme selection with immediate apply (System / Light / Dark)
+### Fixed
+- Wear: Fixed incorrect elapsed time on watch when device sleeps
 
 ## [0.2.3] - 2026-01-19
 ### Added
@@ -78,10 +80,13 @@ All notable changes to SessionLedger will be documented in this file.
 - Session restore (unarchive)
 - Permanent delete with confirmation
 - Sessions list filter: Active / Archived
+### Fixed
+- Wear: Fixed watch elapsed time using absolute timestamp calculation
 
 ## [0.2.4] - 2026-01-19
 ### Fixed
 - False unsaved-changes prompt after saving category edits
+- Wear: Fixed pause handling on watch elapsed timer
 
 ## [0.2.5] - 2026-01-19
 ### Added

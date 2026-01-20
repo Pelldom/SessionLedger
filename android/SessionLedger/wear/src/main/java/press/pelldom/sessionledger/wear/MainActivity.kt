@@ -46,6 +46,7 @@ import java.util.Date
 import kotlinx.coroutines.delay
 import press.pelldom.sessionledger.wear.ui.SessionControlViewModel
 import press.pelldom.sessionledger.wear.ui.WatchSessionState
+import kotlin.math.max
 
 class MainActivity : ComponentActivity() {
     private val viewModel: SessionControlViewModel by lazy {
@@ -116,8 +117,22 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
         }
     }
 
-    // Elapsed time is phone-authoritative; watch only displays and ticks locally for smoothness.
-    val elapsedMs = uiState.displayedElapsedMillis
+    // Ensure recomposition at least once per second while RUNNING (tick is not used in elapsed math).
+    uiState.tickMillis
+
+    val startMs = uiState.startTimeMillis
+    val elapsedMs = if (startMs == null || uiState.state == WatchSessionState.NONE) {
+        0L
+    } else {
+        // Recompute elapsed purely from timestamps (match SLm logic) with correct pause handling:
+        // - While paused, effectiveEnd is the pause start time (or a fixed fallback end time, never "now").
+        val effectiveEndMs = if (uiState.isPaused) {
+            uiState.pauseStartedAtMillis ?: uiState.pauseFallbackEndMillis ?: startMs
+        } else {
+            System.currentTimeMillis()
+        }
+        max(0L, (effectiveEndMs - startMs) - uiState.totalPausedDurationMillis)
+    }
 
     val elapsedAlpha = if (uiState.state == WatchSessionState.PAUSED) {
         val transition = rememberInfiniteTransition(label = "pausePulse")
@@ -256,7 +271,7 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
                 }
 
                 Text(
-                    text = "SessionLedger v0.2.1",
+                    text = "SessionLedger v0.2.4",
                     color = Color.White,
                     style = MaterialTheme.typography.caption3,
                     modifier = Modifier
@@ -272,10 +287,15 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
 }
 
 private fun formatElapsed(elapsedMs: Long): String {
-    val totalSeconds = (elapsedMs / 1000L).coerceAtLeast(0L)
-    val minutes = totalSeconds / 60L
+    val totalSeconds = max(0L, elapsedMs / 1000L)
+    val hours = totalSeconds / 3600L
+    val minutes = (totalSeconds % 3600L) / 60L
     val seconds = totalSeconds % 60L
-    return String.format("%02d:%02d", minutes, seconds)
+    return if (hours > 0L) {
+        String.format("%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
+    }
 }
 
 

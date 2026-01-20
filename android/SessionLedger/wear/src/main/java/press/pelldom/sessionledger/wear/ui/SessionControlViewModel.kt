@@ -30,8 +30,14 @@ data class WatchCategory(
 data class WatchSessionUiState(
     val state: WatchSessionState = WatchSessionState.NONE,
     val startTimeMillis: Long? = null,
-    val elapsedMillis: Long = 0L,
-    val displayedElapsedMillis: Long = 0L,
+    // Phone-authoritative session timing fields (timestamps only; used to compute elapsed purely).
+    val totalPausedDurationMillis: Long = 0L,
+    val pauseStartedAtMillis: Long? = null,
+    val isPaused: Boolean = false,
+    // If we ever end up paused without a pauseStartedAtMillis, freeze elapsed by using this fixed end time.
+    val pauseFallbackEndMillis: Long? = null,
+    // Recomposition trigger only; elapsed must never depend on this.
+    val tickMillis: Long = 0L,
     val categories: List<WatchCategory> = listOf(
         WatchCategory(
             id = "00000000-0000-0000-0000-000000000000",
@@ -52,10 +58,10 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
     val uiState: StateFlow<WatchSessionUiState> = _uiState
     private var tickerJob: Job? = null
 
-    // Hourly haptic reminder (UI triggers haptic when an event is emitted).
+    // Deprecated: hourly haptics are out of scope for this bugfix; keep the flow so UI compiles,
+    // but do not emit from background jobs.
     private val _hourlyHapticEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val hourlyHapticEvents: SharedFlow<Unit> = _hourlyHapticEvents
-    private var lastNotifiedHour: Long = 0L
 
     init {
         dataClient.addListener(this)
@@ -124,11 +130,12 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
         } else {
             null
         }
-        val elapsed = if (map.containsKey(WearSessionPaths.KEY_ELAPSED_MILLIS)) {
-            map.getLong(WearSessionPaths.KEY_ELAPSED_MILLIS)
-        } else {
-            0L
-        }
+        val totalPaused = if (map.containsKey(WearSessionPaths.KEY_TOTAL_PAUSED_MILLIS)) {
+            map.getLong(WearSessionPaths.KEY_TOTAL_PAUSED_MILLIS)
+        } else 0L
+        val lastStateChange = if (map.containsKey(WearSessionPaths.KEY_LAST_STATE_CHANGE_TIME_MILLIS)) {
+            map.getLong(WearSessionPaths.KEY_LAST_STATE_CHANGE_TIME_MILLIS)
+        } else 0L
 
         val state = when (rawState) {
             "RUNNING" -> WatchSessionState.RUNNING
@@ -136,26 +143,30 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
             else -> WatchSessionState.NONE
         }
 
-        Log.d(tag, "Received /session/state: $rawState start=$start elapsed=$elapsed")
+        Log.d(tag, "Received /session/state: $rawState start=$start pausedTotal=$totalPaused lastChange=$lastStateChange")
 
-        // Keep lastNotifiedHour consistent across data refreshes.
-        val elapsedHours = (elapsed / 3_600_000L).coerceAtLeast(0L)
-        lastNotifiedHour = when (state) {
-            WatchSessionState.NONE -> 0L
-            WatchSessionState.PAUSED -> lastNotifiedHour.coerceAtLeast(elapsedHours)
-            WatchSessionState.RUNNING -> {
-                // If elapsed hours went backwards (new session), reset baseline.
-                if (elapsedHours < lastNotifiedHour) elapsedHours else lastNotifiedHour.coerceAtLeast(elapsedHours)
-            }
+        val prior = _uiState.value
+        val isPaused = state == WatchSessionState.PAUSED
+        val pauseStartedAtMillis = when (state) {
+            WatchSessionState.PAUSED -> lastStateChange.takeIf { it > 0L }
+            else -> null
+        }
+        val pauseFallbackEndMillis = if (isPaused && pauseStartedAtMillis == null) {
+            prior.pauseFallbackEndMillis ?: System.currentTimeMillis()
+        } else {
+            null
         }
 
         _uiState.value = WatchSessionUiState(
             state = state,
             startTimeMillis = start,
-            elapsedMillis = elapsed,
-            displayedElapsedMillis = elapsed,
-            categories = _uiState.value.categories,
-            showCategoryPicker = _uiState.value.showCategoryPicker
+            totalPausedDurationMillis = totalPaused,
+            pauseStartedAtMillis = pauseStartedAtMillis,
+            isPaused = isPaused,
+            pauseFallbackEndMillis = pauseFallbackEndMillis,
+            tickMillis = prior.tickMillis,
+            categories = prior.categories,
+            showCategoryPicker = prior.showCategoryPicker
         )
 
         // Drive a lightweight 1-second ticker for smooth UI only when RUNNING.
@@ -166,17 +177,8 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
                     delay(1000L)
                     val current = _uiState.value
                     if (current.state != WatchSessionState.RUNNING) break
-                    val nextDisplayed = current.displayedElapsedMillis + 1000L
-                    _uiState.value = current.copy(displayedElapsedMillis = nextDisplayed)
-
-                    // Hourly reminder: trigger once per full hour while RUNNING.
-                    val hours = (nextDisplayed / 3_600_000L).coerceAtLeast(0L)
-                    if (hours > lastNotifiedHour) {
-                        lastNotifiedHour = hours
-                        if (hours >= 1L) {
-                            _hourlyHapticEvents.tryEmit(Unit)
-                        }
-                    }
+                    val now = System.currentTimeMillis()
+                    _uiState.value = current.copy(tickMillis = now)
                 }
             }
         }

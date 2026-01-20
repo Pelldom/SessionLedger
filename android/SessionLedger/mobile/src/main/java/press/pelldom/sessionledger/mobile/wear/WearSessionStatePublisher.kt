@@ -22,12 +22,16 @@ object WearSessionStatePublisher {
             map.putString(WearSessionPaths.KEY_STATE, "NONE")
             map.remove(WearSessionPaths.KEY_START_TIME_MILLIS)
             map.putLong(WearSessionPaths.KEY_ELAPSED_MILLIS, 0L)
+            map.putLong(WearSessionPaths.KEY_TOTAL_PAUSED_MILLIS, 0L)
+            map.putLong(WearSessionPaths.KEY_LAST_STATE_CHANGE_TIME_MILLIS, 0L)
             Log.d(TAG, "Publish /session/state: NONE")
         } else {
             val elapsed = computeElapsedMillis(activeSession, nowMs)
             map.putString(WearSessionPaths.KEY_STATE, activeSession.state.name)
             map.putLong(WearSessionPaths.KEY_START_TIME_MILLIS, activeSession.startTimeMillis)
             map.putLong(WearSessionPaths.KEY_ELAPSED_MILLIS, elapsed)
+            map.putLong(WearSessionPaths.KEY_TOTAL_PAUSED_MILLIS, activeSession.pausedTotalMs)
+            map.putLong(WearSessionPaths.KEY_LAST_STATE_CHANGE_TIME_MILLIS, activeSession.lastStateChangeTimeMs)
             Log.d(
                 TAG,
                 "Publish /session/state: ${activeSession.state.name} start=${activeSession.startTimeMillis} elapsed=$elapsed"
