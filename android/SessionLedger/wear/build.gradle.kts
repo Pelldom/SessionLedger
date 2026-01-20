@@ -12,7 +12,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "0.2.5"
+        versionName = "0.3.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -59,6 +59,10 @@ dependencies {
     implementation("androidx.wear.protolayout:protolayout:1.0.0")
     implementation("androidx.wear.protolayout:protolayout-material:1.0.0")
     implementation("androidx.wear.protolayout:protolayout-expression:1.0.0")
+
+    // Watch face complications (data source)
+    implementation("androidx.wear.watchface:watchface-complications-data:1.2.1")
+    implementation("androidx.wear.watchface:watchface-complications-data-source:1.2.1")
 
     // Wear OS Data Layer (watch side)
     implementation("com.google.android.gms:play-services-wearable:18.2.0")

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import press.pelldom.sessionledger.wear.datalayer.WearSessionPaths
+import press.pelldom.sessionledger.wear.service.SessionLedgerOngoingService
 
 enum class WatchSessionState { NONE, RUNNING, PAUSED }
 
@@ -202,6 +203,13 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
             categories = prior.categories,
             showCategoryPicker = prior.showCategoryPicker
         )
+
+        // Ongoing indicator: show for RUNNING/PAUSED, remove for NONE.
+        when (state) {
+            WatchSessionState.RUNNING -> SessionLedgerOngoingService.start(getApplication(), isPaused = false)
+            WatchSessionState.PAUSED -> SessionLedgerOngoingService.start(getApplication(), isPaused = true)
+            WatchSessionState.NONE -> SessionLedgerOngoingService.stop(getApplication())
+        }
 
         // Drive a lightweight 1-second ticker for smooth UI only when RUNNING.
         tickerJob?.cancel()

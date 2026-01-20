@@ -94,3 +94,11 @@ All notable changes to SessionLedger will be documented in this file.
 - Default archive range derived from exported sessions
 ### Fixed
 - Wear: Fixed pause/resume elapsed jump on real devices (local pause-carry reconciliation)
+
+## [0.3.0] - 2026-01-20
+### Added
+- Wear: Added watch face complication for quick launch
+
+## [0.3.1] - 2026-01-20
+### Added
+- Wear: Added ongoing SessionLedger indicator for running and paused sessions
