@@ -131,7 +131,9 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
         } else {
             System.currentTimeMillis()
         }
-        max(0L, (effectiveEndMs - startMs) - uiState.totalPausedDurationMillis)
+        val effectivePausedTotal =
+            (uiState.totalPausedDurationMillis + uiState.localPauseCarryMillis).coerceAtLeast(0L)
+        max(0L, (effectiveEndMs - startMs) - effectivePausedTotal)
     }
 
     val elapsedAlpha = if (uiState.state == WatchSessionState.PAUSED) {
@@ -271,7 +273,7 @@ private fun WearRoot(viewModel: SessionControlViewModel) {
                 }
 
                 Text(
-                    text = "SessionLedger v0.2.4",
+                    text = "SessionLedger v0.2.5",
                     color = Color.White,
                     style = MaterialTheme.typography.caption3,
                     modifier = Modifier

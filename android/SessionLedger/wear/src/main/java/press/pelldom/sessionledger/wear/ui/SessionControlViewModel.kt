@@ -36,6 +36,9 @@ data class WatchSessionUiState(
     val isPaused: Boolean = false,
     // If we ever end up paused without a pauseStartedAtMillis, freeze elapsed by using this fixed end time.
     val pauseFallbackEndMillis: Long? = null,
+    // Local reconciliation to avoid a resume "jump" when phone publishes RUNNING before paused-total is updated.
+    val pausedTotalAtPauseStart: Long = 0L,
+    val localPauseCarryMillis: Long = 0L,
     // Recomposition trigger only; elapsed must never depend on this.
     val tickMillis: Long = 0L,
     val categories: List<WatchCategory> = listOf(
@@ -146,15 +149,44 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
         Log.d(tag, "Received /session/state: $rawState start=$start pausedTotal=$totalPaused lastChange=$lastStateChange")
 
         val prior = _uiState.value
+        val now = System.currentTimeMillis()
+
         val isPaused = state == WatchSessionState.PAUSED
-        val pauseStartedAtMillis = when (state) {
-            WatchSessionState.PAUSED -> lastStateChange.takeIf { it > 0L }
+        val phonePauseStartedAtMillis =
+            if (state == WatchSessionState.PAUSED) lastStateChange.takeIf { it > 0L } else null
+
+        val enteringPaused = (prior.state != WatchSessionState.PAUSED) && (state == WatchSessionState.PAUSED)
+        val resuming = (prior.state == WatchSessionState.PAUSED) && (state == WatchSessionState.RUNNING)
+
+        val pauseStartedAtMillis = when {
+            state == WatchSessionState.PAUSED -> phonePauseStartedAtMillis ?: now
             else -> null
         }
-        val pauseFallbackEndMillis = if (isPaused && pauseStartedAtMillis == null) {
-            prior.pauseFallbackEndMillis ?: System.currentTimeMillis()
+
+        val pauseFallbackEndMillis = if (state == WatchSessionState.PAUSED && pauseStartedAtMillis == null) {
+            // Safety: freeze if we somehow end up paused without a pause start time.
+            prior.pauseFallbackEndMillis ?: now
         } else {
             null
+        }
+
+        val pausedTotalAtPauseStart = when {
+            state == WatchSessionState.NONE -> 0L
+            enteringPaused -> totalPaused
+            else -> prior.pausedTotalAtPauseStart
+        }
+
+        // If we resume but paused total hasn't updated yet, carry the paused duration locally once.
+        val localPauseCarryMillis = when {
+            state == WatchSessionState.NONE -> 0L
+            enteringPaused -> 0L
+            resuming && totalPaused == pausedTotalAtPauseStart -> {
+                val pauseStartForCarry = prior.pauseStartedAtMillis ?: prior.pauseFallbackEndMillis ?: now
+                (now - pauseStartForCarry).coerceAtLeast(0L)
+            }
+            // Once phone reports a paused total greater than what we had at pause start, trust phone fully.
+            totalPaused > pausedTotalAtPauseStart -> 0L
+            else -> prior.localPauseCarryMillis
         }
 
         _uiState.value = WatchSessionUiState(
@@ -164,6 +196,8 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
             pauseStartedAtMillis = pauseStartedAtMillis,
             isPaused = isPaused,
             pauseFallbackEndMillis = pauseFallbackEndMillis,
+            pausedTotalAtPauseStart = pausedTotalAtPauseStart,
+            localPauseCarryMillis = localPauseCarryMillis,
             tickMillis = prior.tickMillis,
             categories = prior.categories,
             showCategoryPicker = prior.showCategoryPicker

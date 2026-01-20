@@ -92,3 +92,5 @@ All notable changes to SessionLedger will be documented in this file.
 ### Added
 - Bulk archive workflow after export (optional prompt)
 - Default archive range derived from exported sessions
+### Fixed
+- Wear: Fixed pause/resume elapsed jump on real devices (local pause-carry reconciliation)
