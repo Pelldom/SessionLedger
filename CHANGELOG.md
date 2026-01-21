@@ -98,6 +98,11 @@ All notable changes to SessionLedger will be documented in this file.
 ## [0.3.0] - 2026-01-20
 ### Added
 - Wear: Added watch face complication for quick launch
+- Mobile: Added mobile app iconography using SessionLedger Icon Set A
+
+## [0.3.1] - 2026-01-21
+### Added
+- Mobile: Added always-visible banner ads (Free tier)
 
 ## [0.3.1] - 2026-01-20
 ### Added

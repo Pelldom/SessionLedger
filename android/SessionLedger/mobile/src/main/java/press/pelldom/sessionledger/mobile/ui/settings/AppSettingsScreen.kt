@@ -31,11 +31,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import press.pelldom.sessionledger.mobile.appsettings.AppSettingsViewModel
 import press.pelldom.sessionledger.mobile.appsettings.ThemeMode
 import press.pelldom.sessionledger.mobile.ui.AppVersion
+import press.pelldom.sessionledger.mobile.R
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -126,6 +132,27 @@ fun AppSettingsScreen(onBack: () -> Unit) {
             HorizontalDivider()
 
             SectionTitle("App Info")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.sessionledger_icon_a_monochrome),
+                    contentDescription = "SessionLedger",
+                    modifier = Modifier
+                        .size(18.dp)
+                        .alpha(0.75f),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "SessionLedger",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             InfoRow(label = "App", value = "SessionLedger")
             InfoRow(label = "Version", value = AppVersion.VERSION_NAME)
             buildNumber?.let { InfoRow(label = "Build", value = it.toString()) }

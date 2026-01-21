@@ -35,6 +35,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.NavType
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import press.pelldom.sessionledger.mobile.ads.BannerAd
 import press.pelldom.sessionledger.mobile.ui.active.ActiveSessionScreen
 import press.pelldom.sessionledger.mobile.ui.categories.CategoryDetailScreen
 import press.pelldom.sessionledger.mobile.ui.categories.CategoryManagementScreen
@@ -114,9 +115,10 @@ private fun MobileApp() {
 
     Scaffold(
         bottomBar = {
-            if (!showBottomBar) return@Scaffold
-
             Column {
+                // Always-visible banner ad (Free tier).
+                BannerAd(enabled = true)
+
                 Text(
                     text = AppVersion.FOOTER_TEXT,
                     modifier = Modifier
@@ -127,21 +129,23 @@ private fun MobileApp() {
                     textAlign = TextAlign.Center
                 )
 
-                NavigationBar {
-                    bottomItems.forEach { item ->
-                        val selected = currentDestination?.hierarchy?.any { it.route == item.route } == true
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                navController.navigate(item.route) {
-                                    launchSingleTop = true
-                                    restoreState = true
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                }
-                            },
-                            icon = { Icon(item.icon, contentDescription = item.label) },
-                            label = { Text(item.label) }
-                        )
+                if (showBottomBar) {
+                    NavigationBar {
+                        bottomItems.forEach { item ->
+                            val selected = currentDestination?.hierarchy?.any { it.route == item.route } == true
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = {
+                                    navController.navigate(item.route) {
+                                        launchSingleTop = true
+                                        restoreState = true
+                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    }
+                                },
+                                icon = { Icon(item.icon, contentDescription = item.label) },
+                                label = { Text(item.label) }
+                            )
+                        }
                     }
                 }
             }

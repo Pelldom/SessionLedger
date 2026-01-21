@@ -1,0 +1,54 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Move origin to center -->
+    <group
+        android:translateX="54"
+        android:translateY="54">
+
+        <!-- Scale to adaptive safe zone -->
+        <group
+            android:scaleX="0.75"
+            android:scaleY="0.75">
+
+            <!-- Move origin back -->
+            <group
+                android:translateX="-50"
+                android:translateY="-50">
+
+                <!-- Base circle -->
+                <path
+                    android:fillColor="#0B0F14"
+                    android:pathData="
+                        M50,4
+                        A46,46 0 1,1 49.99,4
+                    "/>
+
+                <!-- Rotated clock hand -->
+                <group
+                    android:pivotX="50"
+                    android:pivotY="50"
+                    android:rotation="315">
+                    <path
+                        android:fillColor="#FFFFFF"
+                        android:pathData="
+                            M46,28
+                            h8
+                            v22
+                            h-8
+                            z
+                        "/>
+                </group>
+
+                <!-- Ledger lines -->
+                <path android:fillColor="#FFFFFF" android:pathData="M61,45 h33 v2 h-33 z"/>
+                <path android:fillColor="#FFFFFF" android:pathData="M61,49 h33 v2 h-33 z"/>
+                <path android:fillColor="#FFFFFF" android:pathData="M61,53 h33 v2 h-33 z"/>
+
+            </group>
+        </group>
+    </group>
+</vector>

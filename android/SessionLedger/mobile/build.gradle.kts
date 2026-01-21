@@ -13,7 +13,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "0.3.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -65,6 +65,9 @@ dependencies {
 
     // Wear OS Data Layer (phone side)
     implementation("com.google.android.gms:play-services-wearable:18.2.0")
+
+    // AdMob banner ads (test IDs only for now)
+    implementation("com.google.android.gms:play-services-ads:23.1.0")
 
     // Compose Navigation
     implementation("androidx.navigation:navigation-compose:2.7.7")
