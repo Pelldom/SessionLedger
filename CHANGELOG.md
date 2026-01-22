@@ -111,6 +111,8 @@ All notable changes to SessionLedger will be documented in this file.
 ## [0.3.2] - 2026-01-20
 ### Fixed
 - Wear: Fixed wear crash caused by missing/invalid notification icon resource
+### Changed
+- Mobile: Reworked export into a user-friendly timesheet CSV and simplified export screen
 
 ## [0.3.3] - 2026-01-20
 ### Changed

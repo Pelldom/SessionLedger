@@ -62,7 +62,6 @@ fun ExportScreen(onDone: () -> Unit, onArchivedDone: () -> Unit) {
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    var showBackConfirm by remember { mutableStateOf(false) }
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
     var showPostExportArchivePrompt by remember { mutableStateOf(false) }
@@ -80,8 +79,7 @@ fun ExportScreen(onDone: () -> Unit, onArchivedDone: () -> Unit) {
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            if (!ui.hasUnsavedChanges) onDone()
-                            else showBackConfirm = true
+                            onDone()
                         }
                     ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -96,19 +94,8 @@ fun ExportScreen(onDone: () -> Unit, onArchivedDone: () -> Unit) {
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedButton(
-                    modifier = Modifier.weight(1f),
-                    onClick = { viewModel.discardEdits() }
-                ) { Text("Cancel") }
-
                 Button(
-                    modifier = Modifier.weight(1f),
-                    enabled = ui.canSave,
-                    onClick = { viewModel.save() }
-                ) { Text("Save") }
-
-                Button(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     enabled = ui.canExport && !ui.exporting,
                     onClick = {
                         Log.d("SL_EXPORT", "Export button clicked")
@@ -143,6 +130,12 @@ fun ExportScreen(onDone: () -> Unit, onArchivedDone: () -> Unit) {
                 Text("Loading…")
                 return@Column
             }
+
+            Text(
+                text = "Archived sessions are not included",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
 
             Text(text = "Date range", style = MaterialTheme.typography.titleMedium)
             PickerRow(
@@ -257,36 +250,6 @@ fun ExportScreen(onDone: () -> Unit, onArchivedDone: () -> Unit) {
                 }
             ) { Text("Open Export Folder") }
         }
-    }
-
-    if (showBackConfirm) {
-        AlertDialog(
-            onDismissRequest = { showBackConfirm = false },
-            title = { Text("Save changes?") },
-            text = { Text("You have unsaved changes.") },
-            confirmButton = {
-                Button(
-                    enabled = ui.canSave,
-                    onClick = {
-                        showBackConfirm = false
-                        viewModel.save()
-                        onDone()
-                    }
-                ) { Text("Save") }
-            },
-            dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = {
-                            showBackConfirm = false
-                            viewModel.discardEdits()
-                            onDone()
-                        }
-                    ) { Text("Discard") }
-                    OutlinedButton(onClick = { showBackConfirm = false }) { Text("Cancel") }
-                }
-            }
-        )
     }
 
     if (showPostExportArchivePrompt && ui.postExportArchivePrompt) {

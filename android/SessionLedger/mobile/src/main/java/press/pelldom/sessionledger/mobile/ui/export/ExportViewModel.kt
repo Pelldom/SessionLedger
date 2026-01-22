@@ -32,8 +32,6 @@ data class ExportUiState(
     val allCategories: Boolean = true,
     val selectedCategoryIds: Set<String> = emptySet(),
 
-    val canSave: Boolean = false,
-    val hasUnsavedChanges: Boolean = false,
     val canExport: Boolean = false,
     val validationError: String? = null,
 
@@ -58,11 +56,6 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
     private val _ui = MutableStateFlow(ExportUiState())
     val ui: StateFlow<ExportUiState> = _ui
 
-    private var baselineStart: LocalDate? = null
-    private var baselineEnd: LocalDate? = null
-    private var baselineAll: Boolean = true
-    private var baselineSelected: Set<String> = emptySet()
-
     private var lastExportAllCategories: Boolean = true
     private var lastExportSelectedCategoryIds: Set<String> = emptySet()
 
@@ -70,11 +63,6 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
         val today = LocalDate.now(zone)
         val defaultStart = today.minusDays(7)
         val defaultEnd = today
-
-        baselineStart = defaultStart
-        baselineEnd = defaultEnd
-        baselineAll = true
-        baselineSelected = emptySet()
 
         _ui.value = ExportUiState(
             loading = true,
@@ -114,28 +102,6 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
         val current = _ui.value.selectedCategoryIds
         val next = if (current.contains(id)) current - id else current + id
         _ui.value = _ui.value.copy(selectedCategoryIds = next)
-        recompute()
-    }
-
-    fun save() {
-        val current = _ui.value
-        baselineStart = current.startDate
-        baselineEnd = current.endDate
-        baselineAll = current.allCategories
-        baselineSelected = current.selectedCategoryIds
-        _ui.value = current.copy(canSave = false, hasUnsavedChanges = false, statusMessage = "Saved.")
-    }
-
-    fun discardEdits() {
-        _ui.value = _ui.value.copy(
-            startDate = baselineStart,
-            endDate = baselineEnd,
-            allCategories = baselineAll,
-            selectedCategoryIds = baselineSelected,
-            canSave = false,
-            hasUnsavedChanges = false,
-            statusMessage = "Changes discarded."
-        )
         recompute()
     }
 
@@ -265,16 +231,8 @@ class ExportViewModel(app: Application) : AndroidViewModel(app) {
             else -> null
         }
 
-        val dirty =
-            current.startDate != baselineStart ||
-                current.endDate != baselineEnd ||
-                current.allCategories != baselineAll ||
-                current.selectedCategoryIds != baselineSelected
-
         _ui.value = current.copy(
             validationError = error,
-            canSave = dirty && error == null,
-            hasUnsavedChanges = dirty,
             canExport = error == null
         )
     }

@@ -8,12 +8,11 @@ import android.util.Log
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatterBuilder
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.flow.first
 import press.pelldom.sessionledger.mobile.billing.BillingEngine
-import press.pelldom.sessionledger.mobile.billing.RoundingMode
-import press.pelldom.sessionledger.mobile.billing.SourceType
 import press.pelldom.sessionledger.mobile.data.db.AppDatabase
 import press.pelldom.sessionledger.mobile.settings.SettingsRepository
 
@@ -53,35 +52,20 @@ class CsvExporter {
             .toList()
 
         val zoneId = ZoneId.systemDefault()
-        val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.US)
+        val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+        val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.US)
         val fileStampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd_HHmm", Locale.US)
 
+        // Timesheet-friendly CSV (one row per session).
         val header = listOf(
-            "session_id",
-            "category_id",
-            "category_name",
-            "notes",
-            "start_local",
-            "end_local",
-            "state",
-            "paused_seconds",
-            "tracked_seconds",
-            "rate_used_per_hour",
-            "rate_source",
-            "rounding_mode_used",
-            "rounding_direction_used",
-            "rounding_source",
-            "min_time_seconds_used",
-            "min_time_source",
-            "min_charge_used",
-            "min_charge_source",
-            "rounded_seconds",
-            "billable_seconds",
-            "cost_pre_min_charge",
-            "final_cost",
-            "currency",
-            "created_on_device",
-            "updated_at_local"
+            "Date",
+            "Start Time",
+            "End Time",
+            "Duration (hh:mm)",
+            "Category",
+            "Notes",
+            "Hourly Rate",
+            "Billable Amount"
         ).joinToString(separator = ",")
 
         val csv = buildString {
@@ -92,41 +76,27 @@ class CsvExporter {
                 val settings = settingsRepo.observeGlobalSettings().first()
                 val billing = BillingEngine.calculateForEndedSession(session, category, settings)
 
-                val startLocal = formatLocal(session.startTimeMs, zoneId, dateTimeFormatter)
-                val endLocal = formatLocal(requireNotNull(session.endTimeMs), zoneId, dateTimeFormatter)
-                val updatedAtLocal = formatLocal(session.updatedAtMs, zoneId, dateTimeFormatter)
+                val startZdt = Instant.ofEpochMilli(session.startTimeMs).atZone(zoneId)
+                val endZdt = Instant.ofEpochMilli(requireNotNull(session.endTimeMs)).atZone(zoneId)
 
-                val roundingDirectionUsed = when (billing.resolved.roundingMode) {
-                    RoundingMode.EXACT -> "none"
-                    RoundingMode.SIX_MINUTE -> billing.resolved.roundingDirection?.name?.lowercase(Locale.US) ?: "none"
-                }
+                val date = startZdt.toLocalDate().format(dateFormatter)
+                val startTime = startZdt.toLocalTime().format(timeFormatter)
+                val endTime = endZdt.toLocalTime().format(timeFormatter)
+                val duration = formatDurationHhMm(billing.trackedSeconds)
+
+                val currency = billing.resolved.currency
+                val hourlyRate = moneyWithCurrency(currency, billing.resolved.ratePerHour)
+                val billed = moneyWithCurrency(currency, billing.finalCost)
 
                 val values = listOf(
-                    csvEscape(session.id),
-                    csvEscape(session.categoryId),
-                    csvEscape(category?.name ?: ""),
-                    csvEscape(session.notes ?: ""),
-                    csvEscape(startLocal),
-                    csvEscape(endLocal),
-                    csvEscape(session.state.name),
-                    (session.pausedTotalMs / 1000L).toString(),
-                    billing.trackedSeconds.toString(),
-                    money2(billing.resolved.ratePerHour),
-                    csvEscape(sourceToCsv(billing.resolved.rateSource)),
-                    csvEscape(roundingModeToCsv(billing.resolved.roundingMode)),
-                    csvEscape(roundingDirectionUsed),
-                    csvEscape(sourceToCsv(billing.resolved.roundingSource)),
-                    billing.resolved.minTimeSeconds.toString(),
-                    csvEscape(sourceToCsv(billing.resolved.minTimeSource)),
-                    money2(billing.resolved.minCharge),
-                    csvEscape(sourceToCsv(billing.resolved.minChargeSource)),
-                    billing.roundedSeconds.toString(),
-                    billing.billableSeconds.toString(),
-                    money2(billing.costPreMinCharge),
-                    money2(billing.finalCost),
-                    csvEscape(billing.resolved.currency),
-                    csvEscape(session.createdOnDevice),
-                    csvEscape(updatedAtLocal)
+                    csvEscape(date),
+                    csvEscape(startTime),
+                    csvEscape(endTime),
+                    csvEscape(duration),
+                    csvEscape(category?.name ?: "Uncategorized"),
+                    csvEscape(""), // Notes (empty for now)
+                    csvEscape(hourlyRate),
+                    csvEscape(billed)
                 )
 
                 appendLine(values.joinToString(separator = ","))
@@ -185,28 +155,16 @@ class CsvExporter {
         return uri
     }
 
-    private fun formatLocal(
-        epochMs: Long,
-        zoneId: ZoneId,
-        formatter: DateTimeFormatter
-    ): String {
-        val zdt = Instant.ofEpochMilli(epochMs).atZone(zoneId)
-        return zdt.format(formatter)
-    }
-
-    private fun roundingModeToCsv(mode: RoundingMode): String = when (mode) {
-        RoundingMode.EXACT -> "exact"
-        RoundingMode.SIX_MINUTE -> "six_minute"
-    }
-
-    private fun sourceToCsv(source: SourceType): String = when (source) {
-        SourceType.SESSION -> "session"
-        SourceType.CATEGORY -> "category"
-        SourceType.GLOBAL -> "global"
-        SourceType.NONE -> "none"
-    }
-
     private fun money2(value: Double): String = String.format(Locale.US, "%.2f", value)
+
+    private fun moneyWithCurrency(currency: String, value: Double): String = "${currency.uppercase(Locale.US)} ${money2(value)}"
+
+    private fun formatDurationHhMm(trackedSeconds: Long): String {
+        val totalMinutes = (trackedSeconds.coerceAtLeast(0L) / 60L)
+        val hours = totalMinutes / 60L
+        val minutes = totalMinutes % 60L
+        return String.format(Locale.US, "%02d:%02d", hours, minutes)
+    }
 
     private fun csvEscape(raw: String): String {
         val needsQuotes = raw.contains(',') || raw.contains('"') || raw.contains('\n') || raw.contains('\r')
