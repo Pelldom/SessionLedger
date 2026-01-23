@@ -1,0 +1,25 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- Clock hand -->
+    <group android:pivotX="50" android:pivotY="50" android:rotation="315">
+        <path
+            android:fillColor="@android:color/white"
+            android:pathData="
+                M46,28
+                h8
+                v22
+                h-8
+                z
+            "/>
+    </group>
+
+    <!-- Ledger lines -->
+    <path android:fillColor="@android:color/white" android:pathData="M61,45 h33 v2 h-33 z"/>
+    <path android:fillColor="@android:color/white" android:pathData="M61,49 h33 v2 h-33 z"/>
+    <path android:fillColor="@android:color/white" android:pathData="M61,53 h33 v2 h-33 z"/>
+
+</vector>
