@@ -2,6 +2,8 @@ package press.pelldom.sessionledger.mobile.wear
 
 import android.content.Context
 import android.util.Log
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
@@ -12,36 +14,46 @@ object WearSessionStatePublisher {
     private const val TAG = "SessionLedgerWear"
 
     fun publish(context: Context, activeSession: SessionEntity?) {
-        val dataClient = Wearable.getDataClient(context)
+        try {
+            val dataClient = Wearable.getDataClient(context)
 
-        val put = PutDataMapRequest.create(WearSessionPaths.SESSION_STATE)
-        val map = put.dataMap
-        val nowMs = System.currentTimeMillis()
+            val put = PutDataMapRequest.create(WearSessionPaths.SESSION_STATE)
+            val map = put.dataMap
+            val nowMs = System.currentTimeMillis()
 
-        if (activeSession == null || activeSession.state == SessionState.ENDED) {
-            map.putString(WearSessionPaths.KEY_STATE, "NONE")
-            map.remove(WearSessionPaths.KEY_START_TIME_MILLIS)
-            map.putLong(WearSessionPaths.KEY_ELAPSED_MILLIS, 0L)
-            map.putLong(WearSessionPaths.KEY_TOTAL_PAUSED_MILLIS, 0L)
-            map.putLong(WearSessionPaths.KEY_LAST_STATE_CHANGE_TIME_MILLIS, 0L)
-            Log.d(TAG, "Publish /session/state: NONE")
-        } else {
-            val elapsed = computeElapsedMillis(activeSession, nowMs)
-            map.putString(WearSessionPaths.KEY_STATE, activeSession.state.name)
-            map.putLong(WearSessionPaths.KEY_START_TIME_MILLIS, activeSession.startTimeMillis)
-            map.putLong(WearSessionPaths.KEY_ELAPSED_MILLIS, elapsed)
-            map.putLong(WearSessionPaths.KEY_TOTAL_PAUSED_MILLIS, activeSession.pausedTotalMs)
-            map.putLong(WearSessionPaths.KEY_LAST_STATE_CHANGE_TIME_MILLIS, activeSession.lastStateChangeTimeMs)
-            Log.d(
-                TAG,
-                "Publish /session/state: ${activeSession.state.name} start=${activeSession.startTimeMillis} elapsed=$elapsed"
-            )
+            if (activeSession == null || activeSession.state == SessionState.ENDED) {
+                map.putString(WearSessionPaths.KEY_STATE, "NONE")
+                map.remove(WearSessionPaths.KEY_START_TIME_MILLIS)
+                map.putLong(WearSessionPaths.KEY_ELAPSED_MILLIS, 0L)
+                map.putLong(WearSessionPaths.KEY_TOTAL_PAUSED_MILLIS, 0L)
+                map.putLong(WearSessionPaths.KEY_LAST_STATE_CHANGE_TIME_MILLIS, 0L)
+                Log.d(TAG, "Publish /session/state: NONE")
+            } else {
+                val elapsed = computeElapsedMillis(activeSession, nowMs)
+                map.putString(WearSessionPaths.KEY_STATE, activeSession.state.name)
+                map.putLong(WearSessionPaths.KEY_START_TIME_MILLIS, activeSession.startTimeMillis)
+                map.putLong(WearSessionPaths.KEY_ELAPSED_MILLIS, elapsed)
+                map.putLong(WearSessionPaths.KEY_TOTAL_PAUSED_MILLIS, activeSession.pausedTotalMs)
+                map.putLong(WearSessionPaths.KEY_LAST_STATE_CHANGE_TIME_MILLIS, activeSession.lastStateChangeTimeMs)
+                Log.d(
+                    TAG,
+                    "Publish /session/state: ${activeSession.state.name} start=${activeSession.startTimeMillis} elapsed=$elapsed"
+                )
+            }
+
+            // Force propagation on every state change.
+            map.putLong("updatedAtMs", nowMs)
+
+            Tasks.await(dataClient.putDataItem(put.asPutDataRequest().setUrgent()))
+        } catch (e: ApiException) {
+            if (e.statusCode == ConnectionResult.API_UNAVAILABLE) {
+                Log.d(TAG, "Wear API unavailable - skipping session state publish")
+                return
+            }
+            Log.w(TAG, "Wear API error during session state publish: ${e.message}", e)
+        } catch (e: Exception) {
+            Log.w(TAG, "Error publishing session state to Wear: ${e.message}", e)
         }
-
-        // Force propagation on every state change.
-        map.putLong("updatedAtMs", nowMs)
-
-        Tasks.await(dataClient.putDataItem(put.asPutDataRequest().setUrgent()))
     }
 
     private fun computeElapsedMillis(session: SessionEntity, nowMs: Long): Long {

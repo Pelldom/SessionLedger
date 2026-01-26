@@ -122,3 +122,7 @@ All notable changes to SessionLedger will be documented in this file.
 ## [0.3.4] - 2026-01-20
 ### Added
 - Mobile: Added optional Watch Companion install control in Settings
+- Mobile: Added shortcut to install Wear OS companion app from settings
+- Wear: Added Wear OS status tile
+### Fixed
+- Mobile: Fixed startup crash on phones without Wear OS by guarding Wear API calls

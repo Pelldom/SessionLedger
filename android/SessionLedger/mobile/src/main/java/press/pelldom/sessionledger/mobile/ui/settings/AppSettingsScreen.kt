@@ -47,6 +47,7 @@ import press.pelldom.sessionledger.mobile.appsettings.AppSettingsViewModel
 import press.pelldom.sessionledger.mobile.appsettings.ThemeMode
 import press.pelldom.sessionledger.mobile.ui.AppVersion
 import press.pelldom.sessionledger.mobile.R
+import press.pelldom.sessionledger.mobile.wear.WearAppInstaller
 import press.pelldom.sessionledger.mobile.wear.WearDetectionHelper
 import press.pelldom.sessionledger.mobile.wear.WearInstallHelper
 import press.pelldom.sessionledger.mobile.wear.WearStatus
@@ -173,52 +174,22 @@ fun AppSettingsScreen(onBack: () -> Unit) {
 
             HorizontalDivider()
 
-            SectionTitle("Watch Companion")
-            when (wearStatus) {
-                WearStatus.NO_WATCH_AVAILABLE -> {
+            SectionTitle("Wear OS")
+            // Check if wear app is installed (on connected watch)
+            val isWearAppInstalled = remember(wearStatus) {
+                wearStatus == WearStatus.WATCH_INSTALLED
+            }
+            
+            when {
+                isWearAppInstalled -> {
                     Text(
-                        text = "No Wear OS device detected",
+                        text = "✓ Watch app installed",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(vertical = 10.dp)
                     )
                 }
-                WearStatus.WATCH_DETECTED_NOT_INSTALLED -> {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Wear OS device detected",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Button(
-                            onClick = {
-                                isInstalling = true
-                                CoroutineScope(Dispatchers.Main).launch {
-                                    WearInstallHelper.openPlayStoreOnWatch(context)
-                                    isInstalling = false
-                                    // Re-detect status after potential install
-                                    wearStatus = WearDetectionHelper.detectWearStatus(context)
-                                }
-                            },
-                            enabled = !isInstalling,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(if (isInstalling) "Opening Play Store..." else "Install on Watch")
-                        }
-                    }
-                }
-                WearStatus.WATCH_INSTALLED -> {
-                    Text(
-                        text = "Watch companion installed",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 10.dp)
-                    )
-                }
-                null -> {
+                wearStatus == null -> {
                     // Still detecting
                     Text(
                         text = "Detecting Wear OS...",
@@ -226,6 +197,24 @@ fun AppSettingsScreen(onBack: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(vertical = 10.dp)
                     )
+                }
+                else -> {
+                    // Show install button if not installed
+                    Button(
+                        onClick = {
+                            isInstalling = true
+                            CoroutineScope(Dispatchers.Main).launch {
+                                WearAppInstaller.openPlayStoreForWearApp(context)
+                                isInstalling = false
+                                // Re-detect status after potential install
+                                wearStatus = WearDetectionHelper.detectWearStatus(context)
+                            }
+                        },
+                        enabled = !isInstalling,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (isInstalling) "Opening Play Store..." else "Install Watch App")
+                    }
                 }
             }
 

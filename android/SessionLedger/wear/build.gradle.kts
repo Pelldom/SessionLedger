@@ -11,8 +11,8 @@ android {
         applicationId = "press.pelldom.sessionledger"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.3.3"
+        versionCode = 2
+        versionName = "0.3.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -66,6 +66,9 @@ dependencies {
 
     // Wear OS Data Layer (watch side)
     implementation("com.google.android.gms:play-services-wearable:18.2.0")
+    
+    // Guava for ListenableFuture support
+    implementation("com.google.guava:guava:32.1.3-android")
 
     // Minimal Compose usage for now (no app features implemented yet)
     implementation("androidx.compose.ui:ui")

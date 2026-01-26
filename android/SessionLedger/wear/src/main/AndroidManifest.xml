@@ -36,6 +36,16 @@
                 android:value="0" />
         </service>
 
+        <service
+            android:name=".tile.SessionLedgerTileService"
+            android:exported="true"
+            android:label="SessionLedger"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+        </service>
+
     </application>
 
 </manifest>
