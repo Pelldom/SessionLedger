@@ -36,6 +36,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.NavType
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import press.pelldom.sessionledger.mobile.ads.BannerAd
+import press.pelldom.sessionledger.mobile.AppConfig
 import press.pelldom.sessionledger.mobile.ui.active.ActiveSessionScreen
 import press.pelldom.sessionledger.mobile.ui.categories.CategoryDetailScreen
 import press.pelldom.sessionledger.mobile.ui.categories.CategoryManagementScreen
@@ -117,7 +118,9 @@ private fun MobileApp() {
         bottomBar = {
             Column {
                 // Always-visible banner ad (Free tier).
-                BannerAd(enabled = true)
+                if (AppConfig.ADS_ENABLED) {
+                    BannerAd(enabled = true)
+                }
 
                 Text(
                     text = AppVersion.FOOTER_TEXT,

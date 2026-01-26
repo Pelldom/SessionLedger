@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,10 +39,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.Button
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import press.pelldom.sessionledger.mobile.appsettings.AppSettingsViewModel
 import press.pelldom.sessionledger.mobile.appsettings.ThemeMode
 import press.pelldom.sessionledger.mobile.ui.AppVersion
 import press.pelldom.sessionledger.mobile.R
+import press.pelldom.sessionledger.mobile.wear.WearDetectionHelper
+import press.pelldom.sessionledger.mobile.wear.WearInstallHelper
+import press.pelldom.sessionledger.mobile.wear.WearStatus
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,7 +59,13 @@ fun AppSettingsScreen(onBack: () -> Unit) {
     val settings by vm.settings.collectAsState()
     val scroll = rememberScrollState()
     var showProDialog by remember { mutableStateOf(false) }
-    var showWearDialog by remember { mutableStateOf(false) }
+    var wearStatus by remember { mutableStateOf<WearStatus?>(null) }
+    var isInstalling by remember { mutableStateOf(false) }
+    
+    // Detect Wear OS status on composition
+    LaunchedEffect(Unit) {
+        wearStatus = WearDetectionHelper.detectWearStatus(context)
+    }
     val buildNumber = remember {
         runCatching {
             val info = context.packageManager.getPackageInfo(context.packageName, 0)
@@ -159,26 +173,60 @@ fun AppSettingsScreen(onBack: () -> Unit) {
 
             HorizontalDivider()
 
-            SectionTitle("Wear OS")
-            Text(
-                text = "SessionLedger for Watch",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showWearDialog = true }
-                    .padding(vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Install on Watch", style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    "Coming soon",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            SectionTitle("Watch Companion")
+            when (wearStatus) {
+                WearStatus.NO_WATCH_AVAILABLE -> {
+                    Text(
+                        text = "No Wear OS device detected",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 10.dp)
+                    )
+                }
+                WearStatus.WATCH_DETECTED_NOT_INSTALLED -> {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Wear OS device detected",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Button(
+                            onClick = {
+                                isInstalling = true
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    WearInstallHelper.openPlayStoreOnWatch(context)
+                                    isInstalling = false
+                                    // Re-detect status after potential install
+                                    wearStatus = WearDetectionHelper.detectWearStatus(context)
+                                }
+                            },
+                            enabled = !isInstalling,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(if (isInstalling) "Opening Play Store..." else "Install on Watch")
+                        }
+                    }
+                }
+                WearStatus.WATCH_INSTALLED -> {
+                    Text(
+                        text = "Watch companion installed",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 10.dp)
+                    )
+                }
+                null -> {
+                    // Still detecting
+                    Text(
+                        text = "Detecting Wear OS...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 10.dp)
+                    )
+                }
             }
 
             HorizontalDivider()
@@ -213,16 +261,6 @@ fun AppSettingsScreen(onBack: () -> Unit) {
         )
     }
 
-    if (showWearDialog) {
-        AlertDialog(
-            onDismissRequest = { showWearDialog = false },
-            title = { Text("Install on Watch") },
-            text = { Text("Install via Play Store (coming soon)") },
-            confirmButton = {
-                TextButton(onClick = { showWearDialog = false }) { Text("OK") }
-            }
-        )
-    }
 }
 
 @Composable

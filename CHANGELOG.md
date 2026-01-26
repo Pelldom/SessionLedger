@@ -117,3 +117,8 @@ All notable changes to SessionLedger will be documented in this file.
 ## [0.3.3] - 2026-01-20
 ### Changed
 - Wear: Removed ongoing indicator feature (abandoned due to stability concerns)
+- Mobile: Temporarily disabled ads for internal testing stability
+
+## [0.3.4] - 2026-01-20
+### Added
+- Mobile: Added optional Watch Companion install control in Settings

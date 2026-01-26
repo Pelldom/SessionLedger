@@ -16,6 +16,7 @@ import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.AdListener
+import press.pelldom.sessionledger.mobile.AppConfig
 
 /**
  * Always-visible banner ad slot.
@@ -41,7 +42,9 @@ fun BannerAd(
 
     // Initialize AdMob once per app launch.
     LaunchedEffect(Unit) {
-        MobileAds.initialize(context) { /* no-op */ }
+        if (AppConfig.ADS_ENABLED) {
+            MobileAds.initialize(context) { /* no-op */ }
+        }
     }
 
     val adView = remember(adSize) {
