@@ -444,13 +444,16 @@ class SessionLedgerTileService : TileService() {
     }
 
     private fun createButton(text: String, action: String): LayoutElementBuilders.LayoutElement {
-        // Material 3 styled button using Box with Material 3 colors
+        // Material 3 styled button with rounded corners
         val isPrimary = action == TileCommandReceiver.ACTION_START || action == TileCommandReceiver.ACTION_RESUME
         val backgroundColor = if (isPrimary) {
             0xFF6750A4.toInt() // Material 3 primary
         } else {
             0xFF625B71.toInt() // Material 3 secondary
         }
+        
+        // Material 3 buttons have rounded corners (typically 20dp radius for full buttons)
+        val cornerRadius = 20f
         
         return LayoutElementBuilders.Box.Builder()
             .setModifiers(
@@ -461,6 +464,15 @@ class SessionLedgerTileService : TileService() {
                             .setColor(
                                 ColorBuilders.ColorProp.Builder()
                                     .setArgb(backgroundColor)
+                                    .build()
+                            )
+                            .setCorner(
+                                ModifiersBuilders.Corner.Builder()
+                                    .setRadius(
+                                        DimensionBuilders.DpProp.Builder()
+                                            .setValue(cornerRadius)
+                                            .build()
+                                    )
                                     .build()
                             )
                             .build()
