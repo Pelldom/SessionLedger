@@ -126,3 +126,12 @@ All notable changes to SessionLedger will be documented in this file.
 - Wear: Added Wear OS status tile
 ### Fixed
 - Mobile: Fixed startup crash on phones without Wear OS by guarding Wear API calls
+
+## [0.3.5] - 2026-01-20
+### Added
+- Wear: Wear Tile now supports Start/Pause/Resume/Stop controls
+- Wear: Unified command sender (WearCommandSender) used by both SLw UI and Tile
+- Mobile: Play-safe message receiving using MESSAGE_RECEIVED action with data filter
+### Changed
+- Wear: Tile is now a first-class control surface (not read-only)
+- Mobile: Phone listener now uses MESSAGE_RECEIVED instead of deprecated BIND_LISTENER

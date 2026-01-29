@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import press.pelldom.sessionledger.wear.comms.WearCommandSender
 import press.pelldom.sessionledger.wear.datalayer.WearSessionPaths
 
 enum class WatchSessionState { NONE, RUNNING, PAUSED }
@@ -54,8 +55,6 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
     private val tag = "SessionLedgerWear"
 
     private val dataClient = Wearable.getDataClient(app)
-    private val messageClient = Wearable.getMessageClient(app)
-    private val nodeClient = Wearable.getNodeClient(app)
 
     private val _uiState = MutableStateFlow(WatchSessionUiState())
     val uiState: StateFlow<WatchSessionUiState> = _uiState
@@ -89,9 +88,23 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
         sendStartWithCategory(categoryId)
     }
 
-    fun pause() = sendCommand(WearSessionPaths.PAUSE)
-    fun resume() = sendCommand(WearSessionPaths.RESUME)
-    fun end() = sendCommand(WearSessionPaths.END)
+    fun pause() {
+        viewModelScope.launch(Dispatchers.IO) {
+            WearCommandSender.sendPause(getApplication())
+        }
+    }
+    
+    fun resume() {
+        viewModelScope.launch(Dispatchers.IO) {
+            WearCommandSender.sendResume(getApplication())
+        }
+    }
+    
+    fun end() {
+        viewModelScope.launch(Dispatchers.IO) {
+            WearCommandSender.sendStop(getApplication())
+        }
+    }
 
     override fun onDataChanged(dataEvents: DataEventBuffer) {
         for (event in dataEvents) {
@@ -232,20 +245,7 @@ class SessionControlViewModel(app: Application) : AndroidViewModel(app), DataCli
 
     private fun sendStartWithCategory(categoryId: String?) {
         viewModelScope.launch(Dispatchers.IO) {
-            val nodes = Tasks.await(nodeClient.connectedNodes)
-            val payload = categoryId?.toByteArray(Charsets.UTF_8) ?: ByteArray(0)
-            for (node in nodes) {
-                Tasks.await(messageClient.sendMessage(node.id, WearSessionPaths.START, payload))
-            }
-        }
-    }
-
-    private fun sendCommand(path: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val nodes = Tasks.await(nodeClient.connectedNodes)
-            for (node in nodes) {
-                Tasks.await(messageClient.sendMessage(node.id, path, ByteArray(0)))
-            }
+            WearCommandSender.sendStart(getApplication(), categoryId)
         }
     }
 }

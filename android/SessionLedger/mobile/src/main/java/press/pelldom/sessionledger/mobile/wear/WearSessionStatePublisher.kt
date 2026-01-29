@@ -24,6 +24,7 @@ object WearSessionStatePublisher {
             if (activeSession == null || activeSession.state == SessionState.ENDED) {
                 map.putString(WearSessionPaths.KEY_STATE, "NONE")
                 map.remove(WearSessionPaths.KEY_START_TIME_MILLIS)
+                map.remove(WearSessionPaths.KEY_CATEGORY_ID)
                 map.putLong(WearSessionPaths.KEY_ELAPSED_MILLIS, 0L)
                 map.putLong(WearSessionPaths.KEY_TOTAL_PAUSED_MILLIS, 0L)
                 map.putLong(WearSessionPaths.KEY_LAST_STATE_CHANGE_TIME_MILLIS, 0L)
@@ -35,9 +36,11 @@ object WearSessionStatePublisher {
                 map.putLong(WearSessionPaths.KEY_ELAPSED_MILLIS, elapsed)
                 map.putLong(WearSessionPaths.KEY_TOTAL_PAUSED_MILLIS, activeSession.pausedTotalMs)
                 map.putLong(WearSessionPaths.KEY_LAST_STATE_CHANGE_TIME_MILLIS, activeSession.lastStateChangeTimeMs)
+                // categoryId is always non-null (has default value), so always include it
+                map.putString(WearSessionPaths.KEY_CATEGORY_ID, activeSession.categoryId)
                 Log.d(
                     TAG,
-                    "Publish /session/state: ${activeSession.state.name} start=${activeSession.startTimeMillis} elapsed=$elapsed"
+                    "Publish /session/state: ${activeSession.state.name} start=${activeSession.startTimeMillis} elapsed=$elapsed categoryId=${activeSession.categoryId}"
                 )
             }
 

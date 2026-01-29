@@ -14,6 +14,7 @@ object WearSessionPaths {
     const val KEY_ELAPSED_MILLIS = "elapsedMillis"
     const val KEY_TOTAL_PAUSED_MILLIS = "totalPausedMillis"
     const val KEY_LAST_STATE_CHANGE_TIME_MILLIS = "lastStateChangeTimeMillis"
+    const val KEY_CATEGORY_ID = "categoryId"
 
     const val KEY_CATEGORY_IDS = "categoryIds"
     const val KEY_CATEGORY_NAMES = "categoryNames"

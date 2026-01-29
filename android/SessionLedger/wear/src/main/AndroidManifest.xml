@@ -39,12 +39,44 @@
         <service
             android:name=".tile.SessionLedgerTileService"
             android:exported="true"
+            android:icon="@drawable/ic_sessionledger_complication"
             android:label="SessionLedger"
             android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
             <intent-filter>
                 <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
             </intent-filter>
         </service>
+
+        <activity
+            android:name=".tile.TileStartActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <activity
+            android:name=".tile.TilePauseActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <activity
+            android:name=".tile.TileResumeActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <activity
+            android:name=".tile.TileStopActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <receiver
+            android:name=".tile.TileCommandReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="press.pelldom.sessionledger.wear.tile.ACTION_START" />
+                <action android:name="press.pelldom.sessionledger.wear.tile.ACTION_PAUSE" />
+                <action android:name="press.pelldom.sessionledger.wear.tile.ACTION_RESUME" />
+                <action android:name="press.pelldom.sessionledger.wear.tile.ACTION_STOP" />
+            </intent-filter>
+        </receiver>
 
     </application>
 
