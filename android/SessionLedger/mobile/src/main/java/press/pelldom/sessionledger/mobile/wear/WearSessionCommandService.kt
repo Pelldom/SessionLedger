@@ -34,11 +34,25 @@ class SessionLedgerWearService : WearableListenerService() {
                     val categoryId = messageEvent.data
                         ?.takeIf { it.isNotEmpty() }
                         ?.toString(Charsets.UTF_8)
+                    Log.d(tag, "Processing START command (categoryId=$categoryId)")
                     repo.startSession(categoryId = categoryId, createdOnDevice = "watch")
+                    Log.d(tag, "START command processed successfully")
                 }
-                WearSessionPaths.PAUSE -> repo.pauseSession()
-                WearSessionPaths.RESUME -> repo.resumeSession()
-                WearSessionPaths.END -> repo.endSession()
+                WearSessionPaths.PAUSE -> {
+                    Log.d(tag, "Processing PAUSE command")
+                    repo.pauseSession()
+                    Log.d(tag, "PAUSE command processed successfully")
+                }
+                WearSessionPaths.RESUME -> {
+                    Log.d(tag, "Processing RESUME command")
+                    repo.resumeSession()
+                    Log.d(tag, "RESUME command processed successfully")
+                }
+                WearSessionPaths.END -> {
+                    Log.d(tag, "Processing END command")
+                    repo.endSession()
+                    Log.d(tag, "END command processed successfully")
+                }
             }
         }
     }

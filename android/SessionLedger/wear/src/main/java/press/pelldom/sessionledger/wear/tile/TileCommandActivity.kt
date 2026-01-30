@@ -2,16 +2,22 @@ package press.pelldom.sessionledger.wear.tile
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
+
+private const val TAG = "TileCommandActivity"
 
 /**
  * Small helper to avoid code duplication across tile command activities.
  */
 private fun ComponentActivity.sendTileCommandAndFinish(action: String) {
+    Log.d(TAG, "sendTileCommandAndFinish: action=$action, packageName=$packageName")
     val broadcastIntent = Intent(action).apply {
         setPackage(packageName)
     }
+    Log.d(TAG, "Sending broadcast: $action (package=$packageName)")
     sendBroadcast(broadcastIntent)
+    Log.d(TAG, "Broadcast sent, finishing activity")
     finish()
 }
 
@@ -21,6 +27,7 @@ private fun ComponentActivity.sendTileCommandAndFinish(action: String) {
 class TileStartActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d(TAG, "TileStartActivity.onCreate() called")
         sendTileCommandAndFinish(TileCommandReceiver.ACTION_START)
     }
 }

@@ -49,22 +49,22 @@
 
         <activity
             android:name=".tile.TileStartActivity"
-            android:exported="false"
+            android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <activity
             android:name=".tile.TilePauseActivity"
-            android:exported="false"
+            android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <activity
             android:name=".tile.TileResumeActivity"
-            android:exported="false"
+            android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <activity
             android:name=".tile.TileStopActivity"
-            android:exported="false"
+            android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <receiver

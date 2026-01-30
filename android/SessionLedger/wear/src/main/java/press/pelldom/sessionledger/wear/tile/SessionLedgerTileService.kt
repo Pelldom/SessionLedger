@@ -20,6 +20,8 @@ import com.google.common.util.concurrent.ListenableFuture
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import com.google.android.gms.wearable.DataClient
+import com.google.android.gms.wearable.DataEvent
+import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.Wearable
 import press.pelldom.sessionledger.wear.MainActivity
@@ -38,9 +40,10 @@ import java.util.concurrent.TimeUnit
  * - No timers or background work
  * - Commands sent only on explicit taps
  */
-class SessionLedgerTileService : TileService() {
+class SessionLedgerTileService : TileService(), DataClient.OnDataChangedListener {
     private val tag = "SessionLedgerTile"
     private val executor = Executors.newSingleThreadExecutor()
+    private var dataClient: DataClient? = null
 
     companion object {
         init {
@@ -55,12 +58,28 @@ class SessionLedgerTileService : TileService() {
     override fun onCreate() {
         super.onCreate()
         Log.d(tag, "SessionLedgerTileService.onCreate() called")
+        dataClient = Wearable.getDataClient(this)
+        dataClient?.addListener(this)
     }
 
     override fun onDestroy() {
         Log.d(tag, "SessionLedgerTileService.onDestroy() called")
+        dataClient?.removeListener(this)
+        dataClient = null
         executor.shutdown()
         super.onDestroy()
+    }
+
+    override fun onDataChanged(dataEvents: DataEventBuffer) {
+        // Check if session state changed and request tile update
+        for (event in dataEvents) {
+            if (event.type == DataEvent.TYPE_CHANGED && event.dataItem.uri.path == WearSessionPaths.SESSION_STATE) {
+                Log.d(tag, "Session state changed, requesting tile update")
+                // Request tile update to reflect new session state
+                // getUpdater() requires a Context, requestUpdate() requires a Class<out TileService>
+                TileService.getUpdater(this).requestUpdate(SessionLedgerTileService::class.java)
+            }
+        }
     }
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> {
@@ -237,6 +256,7 @@ class SessionLedgerTileService : TileService() {
             TileCommandReceiver.ACTION_STOP -> TileStopActivity::class.java.name
             else -> TileStartActivity::class.java.name
         }
+        Log.d(tag, "createButtonClickable: action=$action, activity=$activityClassName, package=$packageName")
         return ModifiersBuilders.Clickable.Builder()
             .setId(action)
             .setOnClick(
