@@ -53,6 +53,10 @@
             </intent-filter>
         </service>
 
+        <!-- Wear OS companion app declaration -->
+        <meta-data
+            android:name="com.google.android.wearable.app"
+            android:resource="@xml/wearable_app" />
 
     </application>
 
