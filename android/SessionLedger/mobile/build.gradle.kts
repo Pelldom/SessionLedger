@@ -12,7 +12,7 @@ android {
         applicationId = "press.pelldom.sessionledger"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
+        versionCode = 10
         versionName = "0.3.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

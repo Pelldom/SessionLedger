@@ -11,6 +11,13 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.SessionLedgerWear">
 
+        <meta-data
+            android:name="com.google.android.gms.wearable.standalone"
+            android:value="true" />
+        <meta-data
+            android:name="com.google.android.wearable.standalone"
+            android:value="true" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
