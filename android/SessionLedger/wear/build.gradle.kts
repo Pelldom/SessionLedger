@@ -36,6 +36,13 @@ android {
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
+
+    buildTypes {
+        release {
+            // Signing config should match mobile app when configured
+            // signingConfig = signingConfigs.getByName("release")
+        }
+    }
 }
 
 dependencies {
